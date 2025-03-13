@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Card } from '../shared/Card';
 import { Button } from '../shared/Button';
@@ -7,76 +6,38 @@ import { Calendar, Clock, MapPin, Users, Star, Info, Filter } from 'lucide-react
 import { useWeb3 } from '@/hooks/useWeb3';
 import { useToast } from '@/hooks/use-toast';
 import { bookRide } from '@/lib/web3';
+import { Ride, getRides, bookRideForUser, searchRides } from '@/lib/db';
 
-// Placeholder data for rides
-const mockRides = [
-  {
-    id: '1',
-    driver: {
-      id: '1',
-      name: 'John D.',
-      address: '0x1234...5678',
-      rating: 4.8,
-      reviewCount: 56,
-    },
-    departure: {
-      location: 'San Francisco, CA',
-      time: '2023-08-15T15:30:00',
-    },
-    destination: {
-      location: 'Palo Alto, CA',
-    },
-    price: 0.015,
-    seatsAvailable: 3,
-    verified: true,
-  },
-  {
-    id: '2',
-    driver: {
-      id: '2',
-      name: 'Sarah M.',
-      address: '0x5678...9012',
-      rating: 4.5,
-      reviewCount: 32,
-    },
-    departure: {
-      location: 'Oakland, CA',
-      time: '2023-08-15T16:45:00',
-    },
-    destination: {
-      location: 'San Jose, CA',
-    },
-    price: 0.025,
-    seatsAvailable: 2,
-    verified: true,
-  },
-  {
-    id: '3',
-    driver: {
-      id: '3',
-      name: 'Mike P.',
-      address: '0x9012...3456',
-      rating: 4.2,
-      reviewCount: 18,
-    },
-    departure: {
-      location: 'Palo Alto, CA',
-      time: '2023-08-15T17:15:00',
-    },
-    destination: {
-      location: 'Mountain View, CA',
-    },
-    price: 0.008,
-    seatsAvailable: 1,
-    verified: false,
-  }
-];
-
-export const RidesList = () => {
-  const [rides, setRides] = useState(mockRides);
+export const RidesList = ({ searchParams }: { searchParams?: any }) => {
+  const [rides, setRides] = useState<Ride[]>([]);
+  const [loading, setLoading] = useState(true);
   const { address } = useWeb3();
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    loadRides();
+  }, []);
+
+  useEffect(() => {
+    if (searchParams && Object.keys(searchParams).some(key => searchParams[key])) {
+      const filteredRides = searchRides({
+        from: searchParams.from,
+        to: searchParams.to,
+        date: searchParams.date,
+        time: searchParams.time,
+        seats: searchParams.seats ? parseInt(searchParams.seats) : undefined
+      });
+      setRides(filteredRides);
+    }
+  }, [searchParams]);
+
+  const loadRides = () => {
+    setLoading(true);
+    const allRides = getRides();
+    setRides(allRides);
+    setLoading(false);
+  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -106,26 +67,26 @@ export const RidesList = () => {
     }
 
     try {
-      // Attempt to book the ride using the web3 library
-      const success = await bookRide(rideId, price);
+      const blockchainSuccess = await bookRide(rideId, price);
       
-      if (success) {
+      const dbSuccess = bookRideForUser(address, rideId);
+      
+      if (blockchainSuccess && dbSuccess) {
         toast({
           title: "Booking confirmed",
           description: `You've booked ride #${rideId}. Check your dashboard for details.`,
         });
         
-        // Navigate to dashboard after successful booking
-        setTimeout(() => {
-          navigate('/dashboard');
-        }, 1500);
-        
-        // Update available seats
-        setRides(rides.map(ride => 
+        const updatedRides = rides.map(ride => 
           ride.id === rideId 
             ? { ...ride, seatsAvailable: Math.max(0, ride.seatsAvailable - 1) }
             : ride
-        ));
+        );
+        setRides(updatedRides);
+        
+        setTimeout(() => {
+          navigate('/dashboard');
+        }, 1500);
       } else {
         toast({
           title: "Booking failed",
@@ -157,13 +118,19 @@ export const RidesList = () => {
         </Button>
       </div>
       
-      {rides.length === 0 ? (
+      {loading ? (
+        <Card className="p-8">
+          <div className="flex justify-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-600"></div>
+          </div>
+        </Card>
+      ) : rides.length === 0 ? (
         <Card className="p-8 text-center">
           <div className="flex flex-col items-center justify-center space-y-4">
             <Info className="h-12 w-12 text-muted-foreground" />
             <h3 className="text-xl font-medium">No rides available</h3>
             <p className="text-muted-foreground">
-              There are no rides available at the moment. Please check back later.
+              There are no rides available matching your criteria. Please try a different search.
             </p>
           </div>
         </Card>

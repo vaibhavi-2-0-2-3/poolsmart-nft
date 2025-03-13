@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '../shared/Button';
@@ -27,12 +26,16 @@ const Hero = () => {
             </p>
             
             <div className="flex flex-col sm:flex-row justify-center lg:justify-start gap-4 pt-4 animate-fade-in opacity-0" style={{ animationDelay: '0.9s', animationFillMode: 'forwards' }}>
-              <Button variant="primary" size="lg" iconRight={<ArrowRight className="h-5 w-5" />} asChild>
-                <Link to="/rides">Find a Ride</Link>
-              </Button>
-              <Button variant="outline" size="lg" asChild>
-                <Link to="/dashboard">Offer a Ride</Link>
-              </Button>
+              <Link to="/rides">
+                <Button variant="primary" size="lg" iconRight={<ArrowRight className="h-5 w-5" />}>
+                  Find a Ride
+                </Button>
+              </Link>
+              <Link to="/dashboard">
+                <Button variant="outline" size="lg">
+                  Offer a Ride
+                </Button>
+              </Link>
             </div>
             
             <div className="flex items-center justify-center lg:justify-start gap-8 pt-8 animate-fade-in opacity-0" style={{ animationDelay: '1.1s', animationFillMode: 'forwards' }}>
