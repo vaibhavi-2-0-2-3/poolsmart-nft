@@ -69,7 +69,7 @@ const features = [
       </svg>
     ),
     title: 'DAO Governance',
-    description: 'Participate in community governance through token voting. Shape the platform's future and fee structure.'
+    description: "Participate in community governance through token voting. Shape the platform's future and fee structure."
   },
   {
     icon: (
