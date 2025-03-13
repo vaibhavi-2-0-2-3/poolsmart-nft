@@ -1,3 +1,4 @@
+
 // Simple client-side database using localStorage
 
 // Types
@@ -166,7 +167,18 @@ export const getDriverById = (id: string): Driver | undefined => {
 
 export const addDriver = (driver: Driver): Driver => {
   const drivers = getDrivers();
-  drivers.push(driver);
+  
+  // Check if driver already exists
+  const existingDriverIndex = drivers.findIndex(d => d.id === driver.id);
+  
+  if (existingDriverIndex !== -1) {
+    // Update existing driver
+    drivers[existingDriverIndex] = driver;
+  } else {
+    // Add new driver
+    drivers.push(driver);
+  }
+  
   localStorage.setItem('drivers', JSON.stringify(drivers));
   return driver;
 };
@@ -185,6 +197,11 @@ export const getRideById = (id: string): Ride | undefined => {
 export const addRide = (ride: Ride): Ride => {
   const rides = getRides();
   ride.id = (rides.length + 1).toString();
+  
+  // Make sure the driver exists in the drivers list
+  // This is crucial for driver profile pages to work
+  addDriver(ride.driver);
+  
   rides.push(ride);
   localStorage.setItem('rides', JSON.stringify(rides));
   return ride;

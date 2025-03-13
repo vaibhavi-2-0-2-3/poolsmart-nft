@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Card } from '../shared/Card';
@@ -6,11 +7,24 @@ import { Calendar, Clock, MapPin, Users, Star, Info, Filter } from 'lucide-react
 import { useWeb3 } from '@/hooks/useWeb3';
 import { useToast } from '@/hooks/use-toast';
 import { bookRide } from '@/lib/web3';
-import { Ride, getRides, bookRideForUser, searchRides } from '@/lib/db';
+import { Ride, getRides, bookRideForUser, searchRides, getDriverById } from '@/lib/db';
+import { RidesFilter, FilterOptions } from './RidesFilter';
 
 export const RidesList = ({ searchParams }: { searchParams?: any }) => {
   const [rides, setRides] = useState<Ride[]>([]);
+  const [filteredRides, setFilteredRides] = useState<Ride[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [activeFilters, setActiveFilters] = useState<FilterOptions>({
+    sortBy: '',
+    sortOrder: 'asc',
+    priceRange: {
+      min: '',
+      max: ''
+    },
+    verifiedOnly: false
+  });
+  
   const { address } = useWeb3();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -29,13 +43,19 @@ export const RidesList = ({ searchParams }: { searchParams?: any }) => {
         seats: searchParams.seats ? parseInt(searchParams.seats) : undefined
       });
       setRides(filteredRides);
+      setFilteredRides(filteredRides);
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    applyFilters(activeFilters);
+  }, [rides, activeFilters]);
 
   const loadRides = () => {
     setLoading(true);
     const allRides = getRides();
     setRides(allRides);
+    setFilteredRides(allRides);
     setLoading(false);
   };
 
@@ -104,6 +124,51 @@ export const RidesList = ({ searchParams }: { searchParams?: any }) => {
     }
   };
 
+  const applyFilters = (filters: FilterOptions) => {
+    let result = [...rides];
+    
+    // Apply price range filter
+    if (filters.priceRange.min) {
+      result = result.filter(ride => ride.price >= parseFloat(filters.priceRange.min));
+    }
+    
+    if (filters.priceRange.max) {
+      result = result.filter(ride => ride.price <= parseFloat(filters.priceRange.max));
+    }
+    
+    // Apply verified driver filter
+    if (filters.verifiedOnly) {
+      result = result.filter(ride => ride.verified);
+    }
+    
+    // Apply sorting
+    if (filters.sortBy) {
+      result.sort((a, b) => {
+        let comparison = 0;
+        
+        switch (filters.sortBy) {
+          case 'price':
+            comparison = a.price - b.price;
+            break;
+          case 'date':
+            comparison = new Date(a.departure.time).getTime() - new Date(b.departure.time).getTime();
+            break;
+          case 'rating':
+            comparison = a.driver.rating - b.driver.rating;
+            break;
+        }
+        
+        return filters.sortOrder === 'asc' ? comparison : -comparison;
+      });
+    }
+    
+    setFilteredRides(result);
+  };
+
+  const handleFilterApply = (filters: FilterOptions) => {
+    setActiveFilters(filters);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -113,9 +178,16 @@ export const RidesList = ({ searchParams }: { searchParams?: any }) => {
           variant="outline" 
           size="sm"
           iconLeft={<Filter className="h-4 w-4" />}
+          onClick={() => setIsFilterOpen(true)}
         >
           Filter
         </Button>
+        
+        <RidesFilter 
+          open={isFilterOpen} 
+          onOpenChange={setIsFilterOpen}
+          onApplyFilters={handleFilterApply}
+        />
       </div>
       
       {loading ? (
@@ -124,7 +196,7 @@ export const RidesList = ({ searchParams }: { searchParams?: any }) => {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-600"></div>
           </div>
         </Card>
-      ) : rides.length === 0 ? (
+      ) : filteredRides.length === 0 ? (
         <Card className="p-8 text-center">
           <div className="flex flex-col items-center justify-center space-y-4">
             <Info className="h-12 w-12 text-muted-foreground" />
@@ -136,7 +208,7 @@ export const RidesList = ({ searchParams }: { searchParams?: any }) => {
         </Card>
       ) : (
         <div className="space-y-4">
-          {rides.map((ride) => (
+          {filteredRides.map((ride) => (
             <Card 
               key={ride.id} 
               className="overflow-hidden transition-all hover:shadow-md"

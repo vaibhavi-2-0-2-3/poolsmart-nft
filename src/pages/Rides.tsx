@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Navbar } from '@/components/layout/Navbar';
 import { RidesList } from '@/components/rides/RidesList';
@@ -102,11 +103,14 @@ const Rides = () => {
     }
     
     try {
+      // Create driver ID that matches exactly what's expected by DriverProfile
+      const driverId = address.substring(0, 6);
+      
       // Create the ride in our database
       const newRide = {
         id: Date.now().toString(),
         driver: {
-          id: address.substring(0, 6), // Use part of wallet address as driver ID
+          id: driverId,
           name: `Driver ${address.substring(0, 4)}`,
           address: address,
           rating: 5.0, // Default rating for new drivers
@@ -118,7 +122,8 @@ const Rides = () => {
             model: "Unknown",
             year: "2023",
             color: "Unknown"
-          }
+          },
+          verified: false
         },
         departure: {
           location: values.from,
