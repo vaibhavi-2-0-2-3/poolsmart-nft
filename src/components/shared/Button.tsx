@@ -8,6 +8,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   isLoading?: boolean;
   iconLeft?: React.ReactNode;
   iconRight?: React.ReactNode;
+  asChild?: boolean;
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
@@ -20,6 +21,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     iconRight,
     children, 
     disabled, 
+    asChild,
     ...props 
   }, ref) => {
     const variantStyles = {

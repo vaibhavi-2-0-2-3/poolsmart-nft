@@ -1,4 +1,3 @@
-
 // Simple client-side database using localStorage
 
 // Types
@@ -16,6 +15,7 @@ export interface Driver {
     year: string;
     color: string;
   };
+  verified?: boolean;
 }
 
 export interface Ride {
@@ -50,7 +50,8 @@ const initialDrivers: Driver[] = [
       model: 'Tesla Model 3',
       year: '2021',
       color: 'White'
-    }
+    },
+    verified: true
   },
   {
     id: '2',
@@ -65,7 +66,8 @@ const initialDrivers: Driver[] = [
       model: 'Toyota Prius',
       year: '2020',
       color: 'Blue'
-    }
+    },
+    verified: true
   },
   {
     id: '3',
@@ -80,7 +82,8 @@ const initialDrivers: Driver[] = [
       model: 'Honda Civic',
       year: '2019',
       color: 'Silver'
-    }
+    },
+    verified: false
   }
 ];
 
