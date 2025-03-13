@@ -1,0 +1,310 @@
+
+import React from 'react';
+import { Navbar } from '@/components/layout/Navbar';
+import { RidesList } from '@/components/rides/RidesList';
+import { Web3Provider } from '@/hooks/useWeb3';
+import { useWeb3 } from '@/hooks/useWeb3';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/shared/Button';
+import { Card } from '@/components/shared/Card';
+import { 
+  Dialog, 
+  DialogTrigger, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogDescription,
+  DialogFooter
+} from '@/components/ui/dialog';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { MapPin, Calendar, Clock, Users, Wallet, Car } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+
+const offerRideSchema = z.object({
+  from: z.string().min(3, { message: 'Departure location is required' }),
+  to: z.string().min(3, { message: 'Destination is required' }),
+  date: z.string().min(1, { message: 'Date is required' }),
+  time: z.string().min(1, { message: 'Time is required' }),
+  seats: z.string().min(1, { message: 'Available seats is required' }),
+  price: z.string().min(1, { message: 'Price is required' })
+});
+
+const Rides = () => {
+  const { address } = useWeb3();
+  const { toast } = useToast();
+  const [isOfferDialogOpen, setIsOfferDialogOpen] = React.useState(false);
+  const [isSearchExpanded, setIsSearchExpanded] = React.useState(false);
+
+  const form = useForm<z.infer<typeof offerRideSchema>>({
+    resolver: zodResolver(offerRideSchema),
+    defaultValues: {
+      from: '',
+      to: '',
+      date: '',
+      time: '',
+      seats: '1',
+      price: '0.01'
+    }
+  });
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    toast({
+      title: "Searching rides",
+      description: "Finding available rides matching your criteria...",
+    });
+  };
+
+  const onOfferRideSubmit = (values: z.infer<typeof offerRideSchema>) => {
+    if (!address) {
+      toast({
+        title: "Wallet not connected",
+        description: "Please connect your wallet to offer a ride",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    console.log(values);
+    toast({
+      title: "Ride offered",
+      description: "Your ride has been listed successfully",
+    });
+    setIsOfferDialogOpen(false);
+  };
+
+  return (
+    <Web3Provider>
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <main className="flex-grow pt-24 pb-16">
+          <div className="container mx-auto px-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <Card className="md:col-span-2 p-6">
+                <form onSubmit={handleSearch}>
+                  <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 ${isSearchExpanded ? 'mb-4' : ''}`}>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                        <MapPin className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <Input 
+                        type="text" 
+                        placeholder="From" 
+                        className="pl-10"
+                        onClick={() => setIsSearchExpanded(true)}
+                      />
+                    </div>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                        <MapPin className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <Input 
+                        type="text" 
+                        placeholder="To" 
+                        className="pl-10"
+                        onClick={() => setIsSearchExpanded(true)}
+                      />
+                    </div>
+                  </div>
+                  
+                  {isSearchExpanded && (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                          <Calendar className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <Input type="date" className="pl-10" />
+                      </div>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                          <Clock className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <Input type="time" className="pl-10" />
+                      </div>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                          <Users className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <Input type="number" min="1" max="10" defaultValue="1" className="pl-10" />
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-end mt-4">
+                    <Button 
+                      type="submit" 
+                      variant="primary"
+                    >
+                      Search Rides
+                    </Button>
+                  </div>
+                </form>
+              </Card>
+              
+              <Card className="p-6 flex flex-col justify-center items-center text-center">
+                <Car className="h-12 w-12 text-brand-600 mb-4" />
+                <h3 className="text-lg font-medium mb-3">Have a car? Offer a ride</h3>
+                <p className="text-muted-foreground mb-4">
+                  Share your ride, reduce costs and help reduce carbon emissions.
+                </p>
+                <Dialog open={isOfferDialogOpen} onOpenChange={setIsOfferDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="primary">Offer a Ride</Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[500px]">
+                    <DialogHeader>
+                      <DialogTitle>Offer a Ride</DialogTitle>
+                      <DialogDescription>
+                        Fill in the details below to offer your ride on the blockchain.
+                      </DialogDescription>
+                    </DialogHeader>
+                    
+                    <Form {...form}>
+                      <form onSubmit={form.handleSubmit(onOfferRideSubmit)} className="space-y-4">
+                        <div className="grid grid-cols-1 gap-4">
+                          <FormField
+                            control={form.control}
+                            name="from"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>From</FormLabel>
+                                <FormControl>
+                                  <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                      <MapPin className="h-4 w-4 text-muted-foreground" />
+                                    </div>
+                                    <Input placeholder="Departure location" className="pl-10" {...field} />
+                                  </div>
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          
+                          <FormField
+                            control={form.control}
+                            name="to"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>To</FormLabel>
+                                <FormControl>
+                                  <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                      <MapPin className="h-4 w-4 text-muted-foreground" />
+                                    </div>
+                                    <Input placeholder="Destination" className="pl-10" {...field} />
+                                  </div>
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          
+                          <div className="grid grid-cols-2 gap-4">
+                            <FormField
+                              control={form.control}
+                              name="date"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Date</FormLabel>
+                                  <FormControl>
+                                    <div className="relative">
+                                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                                      </div>
+                                      <Input type="date" className="pl-10" {...field} />
+                                    </div>
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            
+                            <FormField
+                              control={form.control}
+                              name="time"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Time</FormLabel>
+                                  <FormControl>
+                                    <div className="relative">
+                                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                        <Clock className="h-4 w-4 text-muted-foreground" />
+                                      </div>
+                                      <Input type="time" className="pl-10" {...field} />
+                                    </div>
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-4">
+                            <FormField
+                              control={form.control}
+                              name="seats"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Available Seats</FormLabel>
+                                  <FormControl>
+                                    <div className="relative">
+                                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                        <Users className="h-4 w-4 text-muted-foreground" />
+                                      </div>
+                                      <Input type="number" min="1" max="10" className="pl-10" {...field} />
+                                    </div>
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            
+                            <FormField
+                              control={form.control}
+                              name="price"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Price (ETH)</FormLabel>
+                                  <FormControl>
+                                    <div className="relative">
+                                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                        <Wallet className="h-4 w-4 text-muted-foreground" />
+                                      </div>
+                                      <Input type="number" min="0.001" step="0.001" className="pl-10" {...field} />
+                                    </div>
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                        </div>
+                        
+                        <DialogFooter>
+                          <Button 
+                            type="submit" 
+                            variant="primary"
+                          >
+                            List Ride
+                          </Button>
+                        </DialogFooter>
+                      </form>
+                    </Form>
+                  </DialogContent>
+                </Dialog>
+              </Card>
+            </div>
+            
+            <RidesList />
+          </div>
+        </main>
+      </div>
+    </Web3Provider>
+  );
+};
+
+export default Rides;

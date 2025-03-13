@@ -81,6 +81,53 @@ export const switchNetwork = async (chainId: string): Promise<boolean> => {
   }
 };
 
+// Create a ride listing in a smart contract (placeholder)
+export const createRideListing = async (rideDetails: any): Promise<boolean> => {
+  if (!isMetaMaskInstalled()) return false;
+  
+  try {
+    // In a real app, you would interact with a smart contract here
+    console.log('Creating ride listing with details:', rideDetails);
+    
+    // Simulate successful contract interaction
+    return true;
+  } catch (error) {
+    console.error('Error creating ride listing:', error);
+    return false;
+  }
+};
+
+// Book a ride through a smart contract (placeholder)
+export const bookRide = async (rideId: string, price: number): Promise<boolean> => {
+  if (!isMetaMaskInstalled()) return false;
+  
+  try {
+    // In a real app, you would interact with a smart contract here
+    console.log(`Booking ride ${rideId} for ${price} ETH`);
+    
+    // Simulate successful contract interaction
+    return true;
+  } catch (error) {
+    console.error('Error booking ride:', error);
+    return false;
+  }
+};
+
+// Get estimated gas fee (placeholder)
+export const getGasFee = async (): Promise<string> => {
+  if (!isMetaMaskInstalled()) return '0';
+  
+  try {
+    const gasPrice = await window.ethereum!.request({ method: 'eth_gasPrice' });
+    const gasPriceInGwei = parseInt(gasPrice, 16) / 1e9;
+    
+    return gasPriceInGwei.toFixed(2);
+  } catch (error) {
+    console.error('Error getting gas fee:', error);
+    return '0';
+  }
+};
+
 export default {
   isMetaMaskInstalled,
   formatEth,
@@ -88,4 +135,7 @@ export default {
   ethToUsd,
   getNetworkName,
   switchNetwork,
+  createRideListing,
+  bookRide,
+  getGasFee,
 };
