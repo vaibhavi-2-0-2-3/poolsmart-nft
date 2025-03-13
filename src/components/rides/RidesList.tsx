@@ -1,16 +1,19 @@
 
 import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Card } from '../shared/Card';
 import { Button } from '../shared/Button';
 import { Calendar, Clock, MapPin, Users, Star, Info, Filter } from 'lucide-react';
 import { useWeb3 } from '@/hooks/useWeb3';
 import { useToast } from '@/hooks/use-toast';
+import { bookRide } from '@/lib/web3';
 
 // Placeholder data for rides
 const mockRides = [
   {
     id: '1',
     driver: {
+      id: '1',
       name: 'John D.',
       address: '0x1234...5678',
       rating: 4.8,
@@ -30,6 +33,7 @@ const mockRides = [
   {
     id: '2',
     driver: {
+      id: '2',
       name: 'Sarah M.',
       address: '0x5678...9012',
       rating: 4.5,
@@ -49,6 +53,7 @@ const mockRides = [
   {
     id: '3',
     driver: {
+      id: '3',
       name: 'Mike P.',
       address: '0x9012...3456',
       rating: 4.2,
@@ -71,6 +76,7 @@ export const RidesList = () => {
   const [rides, setRides] = useState(mockRides);
   const { address } = useWeb3();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -89,7 +95,7 @@ export const RidesList = () => {
     });
   };
 
-  const handleBookRide = (rideId: string) => {
+  const handleBookRide = async (rideId: string, price: number) => {
     if (!address) {
       toast({
         title: "Wallet not connected",
@@ -99,10 +105,42 @@ export const RidesList = () => {
       return;
     }
 
-    toast({
-      title: "Booking confirmed",
-      description: `You've booked ride #${rideId}. Confirmation will appear in your dashboard.`,
-    });
+    try {
+      // Attempt to book the ride using the web3 library
+      const success = await bookRide(rideId, price);
+      
+      if (success) {
+        toast({
+          title: "Booking confirmed",
+          description: `You've booked ride #${rideId}. Check your dashboard for details.`,
+        });
+        
+        // Navigate to dashboard after successful booking
+        setTimeout(() => {
+          navigate('/dashboard');
+        }, 1500);
+        
+        // Update available seats
+        setRides(rides.map(ride => 
+          ride.id === rideId 
+            ? { ...ride, seatsAvailable: Math.max(0, ride.seatsAvailable - 1) }
+            : ride
+        ));
+      } else {
+        toast({
+          title: "Booking failed",
+          description: "There was an error processing your booking",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error booking ride:", error);
+      toast({
+        title: "Transaction error",
+        description: "There was an error with the blockchain transaction",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -139,7 +177,7 @@ export const RidesList = () => {
             >
               <div className="p-6">
                 <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center space-x-3">
+                  <Link to={`/driver/${ride.driver.id}`} className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
                     <div className="h-10 w-10 rounded-full bg-brand-100 flex items-center justify-center">
                       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-brand-600">
                         <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
@@ -161,7 +199,7 @@ export const RidesList = () => {
                         <span className="ml-1 text-xs text-muted-foreground">({ride.driver.rating})</span>
                       </div>
                     </div>
-                  </div>
+                  </Link>
                   {ride.verified && (
                     <div className="flex items-center justify-center h-8 px-3 rounded-full bg-green-100 text-green-700 text-xs font-medium">
                       Verified Driver
@@ -241,9 +279,10 @@ export const RidesList = () => {
                     
                     <Button 
                       variant="primary" 
-                      onClick={() => handleBookRide(ride.id)}
+                      onClick={() => handleBookRide(ride.id, ride.price)}
+                      disabled={ride.seatsAvailable === 0}
                     >
-                      Book Ride
+                      {ride.seatsAvailable === 0 ? 'Fully Booked' : 'Book Ride'}
                     </Button>
                   </div>
                 </div>

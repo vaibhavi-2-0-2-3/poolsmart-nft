@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Rides from "./pages/Rides";
 import Dashboard from "./pages/Dashboard";
+import DriverProfile from "./pages/DriverProfile";
 import NotFound from "./pages/NotFound";
 import { Web3Provider } from "@/hooks/useWeb3";
 
@@ -23,6 +24,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/rides" element={<Rides />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/driver/:driverId" element={<DriverProfile />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

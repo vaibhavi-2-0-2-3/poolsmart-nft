@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Navbar } from '@/components/layout/Navbar';
 import { RidesList } from '@/components/rides/RidesList';
 import { Web3Provider } from '@/hooks/useWeb3';
@@ -22,6 +22,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { MapPin, Calendar, Clock, Users, Wallet, Car } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { createRideListing } from '@/lib/web3';
+import { useNavigate } from 'react-router-dom';
 
 const offerRideSchema = z.object({
   from: z.string().min(3, { message: 'Departure location is required' }),
@@ -35,8 +37,16 @@ const offerRideSchema = z.object({
 const Rides = () => {
   const { address } = useWeb3();
   const { toast } = useToast();
-  const [isOfferDialogOpen, setIsOfferDialogOpen] = React.useState(false);
-  const [isSearchExpanded, setIsSearchExpanded] = React.useState(false);
+  const navigate = useNavigate();
+  const [isOfferDialogOpen, setIsOfferDialogOpen] = useState(false);
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const [searchParams, setSearchParams] = useState({
+    from: '',
+    to: '',
+    date: '',
+    time: '',
+    seats: '1'
+  });
 
   const form = useForm<z.infer<typeof offerRideSchema>>({
     resolver: zodResolver(offerRideSchema),
@@ -50,15 +60,40 @@ const Rides = () => {
     }
   });
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearchParamChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setSearchParams(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate that we have at least from and to locations
+    if (!searchParams.from || !searchParams.to) {
+      toast({
+        title: "Missing information",
+        description: "Please provide departure and destination locations",
+        variant: "destructive",
+      });
+      return;
+    }
+
     toast({
       title: "Searching rides",
       description: "Finding available rides matching your criteria...",
     });
+
+    // In a real app, you would search the blockchain for matching rides
+    // For now, we'll just simulate a search delay and show existing rides
+    setTimeout(() => {
+      toast({
+        title: "Rides found",
+        description: "We found several rides matching your search criteria",
+      });
+    }, 1500);
   };
 
-  const onOfferRideSubmit = (values: z.infer<typeof offerRideSchema>) => {
+  const onOfferRideSubmit = async (values: z.infer<typeof offerRideSchema>) => {
     if (!address) {
       toast({
         title: "Wallet not connected",
@@ -68,12 +103,46 @@ const Rides = () => {
       return;
     }
     
-    console.log(values);
-    toast({
-      title: "Ride offered",
-      description: "Your ride has been listed successfully",
-    });
-    setIsOfferDialogOpen(false);
+    try {
+      const rideDetails = {
+        from: values.from,
+        to: values.to,
+        date: values.date,
+        time: values.time,
+        seats: parseInt(values.seats),
+        price: parseFloat(values.price)
+      };
+      
+      // Attempt to create a ride listing using the web3 library
+      const success = await createRideListing(rideDetails);
+      
+      if (success) {
+        toast({
+          title: "Ride offered",
+          description: "Your ride has been listed successfully",
+        });
+        setIsOfferDialogOpen(false);
+        form.reset();
+        
+        // Navigate to dashboard after successful listing
+        setTimeout(() => {
+          navigate('/dashboard');
+        }, 1500);
+      } else {
+        toast({
+          title: "Listing failed",
+          description: "There was an error creating your ride listing",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error offering ride:", error);
+      toast({
+        title: "Transaction error",
+        description: "There was an error with the blockchain transaction",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -92,8 +161,11 @@ const Rides = () => {
                       </div>
                       <Input 
                         type="text" 
+                        name="from"
                         placeholder="From" 
                         className="pl-10"
+                        value={searchParams.from}
+                        onChange={handleSearchParamChange}
                         onClick={() => setIsSearchExpanded(true)}
                       />
                     </div>
@@ -103,8 +175,11 @@ const Rides = () => {
                       </div>
                       <Input 
                         type="text" 
+                        name="to"
                         placeholder="To" 
                         className="pl-10"
+                        value={searchParams.to}
+                        onChange={handleSearchParamChange}
                         onClick={() => setIsSearchExpanded(true)}
                       />
                     </div>
@@ -116,19 +191,39 @@ const Rides = () => {
                         <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                           <Calendar className="h-4 w-4 text-muted-foreground" />
                         </div>
-                        <Input type="date" className="pl-10" />
+                        <Input 
+                          type="date" 
+                          name="date"
+                          className="pl-10" 
+                          value={searchParams.date}
+                          onChange={handleSearchParamChange}
+                        />
                       </div>
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                           <Clock className="h-4 w-4 text-muted-foreground" />
                         </div>
-                        <Input type="time" className="pl-10" />
+                        <Input 
+                          type="time" 
+                          name="time"
+                          className="pl-10" 
+                          value={searchParams.time}
+                          onChange={handleSearchParamChange}
+                        />
                       </div>
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                           <Users className="h-4 w-4 text-muted-foreground" />
                         </div>
-                        <Input type="number" min="1" max="10" defaultValue="1" className="pl-10" />
+                        <Input 
+                          type="number" 
+                          name="seats"
+                          min="1" 
+                          max="10" 
+                          className="pl-10"
+                          value={searchParams.seats}
+                          onChange={handleSearchParamChange}
+                        />
                       </div>
                     </div>
                   )}
