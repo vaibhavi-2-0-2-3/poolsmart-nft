@@ -1,8 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useWeb3 } from '@/hooks/useWeb3';
 import { Button } from '../shared/Button';
-import { Wallet2, ChevronDown, Loader2, LogOut, Copy } from 'lucide-react';
+import { Wallet2, ChevronDown, Copy, LogOut } from 'lucide-react';
 import { Card } from '../shared/Card';
 import { useToast } from '@/hooks/use-toast';
 
@@ -10,6 +10,19 @@ export const WalletConnect = () => {
   const { address, connect, disconnect, isConnecting, balance } = useWeb3();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const { toast } = useToast();
+  
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (isDropdownOpen && !target.closest('.wallet-dropdown')) {
+        setIsDropdownOpen(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isDropdownOpen]);
   
   const shortenAddress = (address: string | null) => {
     if (!address) return '';
@@ -24,6 +37,15 @@ export const WalletConnect = () => {
         description: "Your wallet address has been copied to clipboard",
       });
     }
+  };
+  
+  const handleDisconnect = () => {
+    disconnect();
+    setIsDropdownOpen(false);
+    toast({
+      title: "Wallet disconnected",
+      description: "Your wallet has been successfully disconnected",
+    });
   };
   
   if (!address) {
@@ -41,7 +63,7 @@ export const WalletConnect = () => {
   }
   
   return (
-    <div className="relative">
+    <div className="relative wallet-dropdown">
       <Button
         variant="outline"
         onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -106,10 +128,7 @@ export const WalletConnect = () => {
             <Button 
               variant="ghost" 
               className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50"
-              onClick={() => {
-                disconnect();
-                setIsDropdownOpen(false);
-              }}
+              onClick={handleDisconnect}
               iconLeft={<LogOut className="h-4 w-4" />}
             >
               Disconnect

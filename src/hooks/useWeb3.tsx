@@ -78,6 +78,10 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
         const currentBalance = await getBalance(accounts[0]);
         setBalance(currentBalance);
         
+        // Store connection in localStorage to persist between refreshes
+        localStorage.setItem('walletConnected', 'true');
+        localStorage.setItem('walletAddress', accounts[0]);
+        
         toast({
           title: "Wallet connected",
           description: "Your wallet has been successfully connected",
@@ -100,10 +104,9 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
     setAddress(null);
     setBalance(null);
     
-    toast({
-      title: "Wallet disconnected",
-      description: "Your wallet has been disconnected",
-    });
+    // Remove wallet connection from localStorage
+    localStorage.removeItem('walletConnected');
+    localStorage.removeItem('walletAddress');
   };
 
   // Handle account changes
@@ -115,6 +118,9 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
       setAddress(accounts[0]);
       const currentBalance = await getBalance(accounts[0]);
       setBalance(currentBalance);
+      
+      // Update localStorage with new address
+      localStorage.setItem('walletAddress', accounts[0]);
       
       toast({
         title: "Account changed",
@@ -133,20 +139,32 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!isMetaMaskInstalled()) return;
 
-    // Check for existing connection
+    // Check for existing connection in localStorage
     const checkConnection = async () => {
-      try {
-        const accounts = await window.ethereum.request({
-          method: 'eth_accounts',
-        });
-        
-        if (accounts.length > 0) {
-          setAddress(accounts[0]);
-          const currentBalance = await getBalance(accounts[0]);
-          setBalance(currentBalance);
+      const walletConnected = localStorage.getItem('walletConnected');
+      const savedAddress = localStorage.getItem('walletAddress');
+      
+      if (walletConnected === 'true' && savedAddress) {
+        try {
+          // Verify if the wallet is still connected through MetaMask
+          const accounts = await window.ethereum.request({
+            method: 'eth_accounts',
+          });
+          
+          if (accounts.length > 0) {
+            setAddress(accounts[0]);
+            const currentBalance = await getBalance(accounts[0]);
+            setBalance(currentBalance);
+          } else {
+            // If MetaMask no longer has the account, clear localStorage
+            localStorage.removeItem('walletConnected');
+            localStorage.removeItem('walletAddress');
+          }
+        } catch (error) {
+          console.error('Error checking connection:', error);
+          localStorage.removeItem('walletConnected');
+          localStorage.removeItem('walletAddress');
         }
-      } catch (error) {
-        console.error('Error checking connection:', error);
       }
     };
 
@@ -165,7 +183,7 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
         window.ethereum.removeListener('chainChanged', handleChainChanged);
       }
     };
-  }, [address]);
+  }, []);
 
   return (
     <Web3Context.Provider
