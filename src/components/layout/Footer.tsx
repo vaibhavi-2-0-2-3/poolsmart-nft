@@ -35,7 +35,7 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
-                <Link to="/governance" className="text-sm text-muted-foreground hover:text-brand-600 transition-colors">
+                <Link to="/" className="text-sm text-muted-foreground hover:text-brand-600 transition-colors">
                   DAO Governance
                 </Link>
               </li>
@@ -46,12 +46,12 @@ const Footer = () => {
             <h3 className="text-base font-medium mb-4">Resources</h3>
             <ul className="space-y-3">
               <li>
-                <Link to="/docs" className="text-sm text-muted-foreground hover:text-brand-600 transition-colors">
+                <Link to="/" className="text-sm text-muted-foreground hover:text-brand-600 transition-colors">
                   Documentation
                 </Link>
               </li>
               <li>
-                <Link to="/faq" className="text-sm text-muted-foreground hover:text-brand-600 transition-colors">
+                <Link to="/" className="text-sm text-muted-foreground hover:text-brand-600 transition-colors">
                   FAQ
                 </Link>
               </li>
@@ -72,12 +72,12 @@ const Footer = () => {
             <h3 className="text-base font-medium mb-4">Legal</h3>
             <ul className="space-y-3">
               <li>
-                <Link to="/privacy" className="text-sm text-muted-foreground hover:text-brand-600 transition-colors">
+                <Link to="/" className="text-sm text-muted-foreground hover:text-brand-600 transition-colors">
                   Privacy Policy
                 </Link>
               </li>
               <li>
-                <Link to="/terms" className="text-sm text-muted-foreground hover:text-brand-600 transition-colors">
+                <Link to="/" className="text-sm text-muted-foreground hover:text-brand-600 transition-colors">
                   Terms of Service
                 </Link>
               </li>

@@ -32,8 +32,11 @@ export interface Ride {
   price: number;
   seatsAvailable: number;
   verified: boolean;
-  status?: 'active' | 'completed' | 'cancelled';
+  status?: 'active' | 'in_progress' | 'completed' | 'cancelled';
   passengers?: string[]; // Array of passenger wallet addresses
+  startedAt?: string; // timestamp when ride started
+  endedAt?: string; // timestamp when ride ended
+  paymentStatus?: 'pending' | 'processing' | 'completed' | 'failed';
 }
 
 // Initial data
@@ -217,6 +220,42 @@ export const updateRide = (updatedRide: Ride): Ride => {
   }
   
   return updatedRide;
+};
+
+// New function: Start a ride
+export const startRide = (rideId: string): boolean => {
+  const ride = getRideById(rideId);
+  if (!ride) return false;
+  
+  ride.status = 'in_progress';
+  ride.startedAt = new Date().toISOString();
+  
+  updateRide(ride);
+  return true;
+};
+
+// New function: End a ride
+export const endRide = (rideId: string): boolean => {
+  const ride = getRideById(rideId);
+  if (!ride) return false;
+  
+  ride.status = 'completed';
+  ride.endedAt = new Date().toISOString();
+  ride.paymentStatus = 'pending';
+  
+  updateRide(ride);
+  return true;
+};
+
+// New function: Process payment for a ride
+export const processPayment = (rideId: string): boolean => {
+  const ride = getRideById(rideId);
+  if (!ride) return false;
+  
+  ride.paymentStatus = 'completed';
+  
+  updateRide(ride);
+  return true;
 };
 
 export const searchRides = (criteria: {

@@ -113,6 +113,54 @@ export const bookRide = async (rideId: string, price: number): Promise<boolean> 
   }
 };
 
+// New function: Start ride through smart contract (placeholder)
+export const startRide = async (rideId: string): Promise<boolean> => {
+  if (!isMetaMaskInstalled()) return false;
+  
+  try {
+    // In a real app, you would interact with a smart contract here
+    console.log(`Starting ride ${rideId}`);
+    
+    // Simulate successful contract interaction
+    return true;
+  } catch (error) {
+    console.error('Error starting ride:', error);
+    return false;
+  }
+};
+
+// New function: End ride through smart contract (placeholder)
+export const endRide = async (rideId: string): Promise<boolean> => {
+  if (!isMetaMaskInstalled()) return false;
+  
+  try {
+    // In a real app, you would interact with a smart contract here
+    console.log(`Ending ride ${rideId}`);
+    
+    // Simulate successful contract interaction
+    return true;
+  } catch (error) {
+    console.error('Error ending ride:', error);
+    return false;
+  }
+};
+
+// New function: Process payment through smart contract (placeholder)
+export const processPayment = async (rideId: string, amount: number): Promise<boolean> => {
+  if (!isMetaMaskInstalled()) return false;
+  
+  try {
+    // In a real app, you would interact with a smart contract here
+    console.log(`Processing payment for ride ${rideId} for ${amount} ETH`);
+    
+    // Simulate successful contract interaction
+    return true;
+  } catch (error) {
+    console.error('Error processing payment:', error);
+    return false;
+  }
+};
+
 // Get estimated gas fee (placeholder)
 export const getGasFee = async (): Promise<string> => {
   if (!isMetaMaskInstalled()) return '0';
@@ -137,5 +185,8 @@ export default {
   switchNetwork,
   createRideListing,
   bookRide,
+  startRide,
+  endRide,
+  processPayment,
   getGasFee,
 };
