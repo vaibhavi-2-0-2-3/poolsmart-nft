@@ -13,17 +13,34 @@ import {
   MapPin,
   MessageCircle,
   Clock,
-  ChevronLeft
+  ChevronLeft,
+  UserRound,
+  Edit
 } from 'lucide-react';
 import { getDriverById, Driver, getRides, Ride } from '@/lib/db';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { ContactDriverModal } from '@/components/driver/ContactDriverModal';
+import { ProfileEditModal } from '@/components/profile/ProfileEditModal';
 
 const DriverProfile = () => {
   const { driverId } = useParams<{ driverId: string }>();
   const [driver, setDriver] = useState<Driver | null>(null);
   const [driverRides, setDriverRides] = useState<Ride[]>([]);
   const [loading, setLoading] = useState(true);
+  const [contactModalOpen, setContactModalOpen] = useState(false);
+  const [profileEditModalOpen, setProfileEditModalOpen] = useState(false);
+  const [userProfile, setUserProfile] = useState({
+    username: 'User',
+    avatar: ''
+  });
   
   useEffect(() => {
+    // Check if we have user profile in localStorage
+    const savedProfile = localStorage.getItem('userProfile');
+    if (savedProfile) {
+      setUserProfile(JSON.parse(savedProfile));
+    }
+    
     if (driverId) {
       loadDriverData(driverId);
     }
@@ -72,6 +89,17 @@ const DriverProfile = () => {
       minute: '2-digit' 
     });
   };
+
+  const handleProfileSave = (data: { username: string; avatar: string }) => {
+    setUserProfile(data);
+    
+    // Save to localStorage for persistence
+    localStorage.setItem('userProfile', JSON.stringify(data));
+  };
+  
+  const getInitials = (name: string) => {
+    return name.charAt(0).toUpperCase();
+  };
   
   if (loading) {
     return (
@@ -114,7 +142,7 @@ const DriverProfile = () => {
       <Navbar />
       <main className="flex-grow pt-24 pb-16">
         <div className="container mx-auto px-4">
-          <div className="mb-6">
+          <div className="flex justify-between items-center mb-6">
             <Button 
               variant="ghost" 
               iconLeft={<ChevronLeft className="h-4 w-4" />}
@@ -122,6 +150,30 @@ const DriverProfile = () => {
             >
               <Link to="/rides">Back to Rides</Link>
             </Button>
+            
+            <div className="flex items-center gap-3">
+              <div className="flex items-center">
+                <Avatar className="h-8 w-8 mr-2">
+                  {userProfile.avatar ? (
+                    <AvatarImage src={userProfile.avatar} alt={userProfile.username} />
+                  ) : (
+                    <AvatarFallback className="bg-brand-100 text-brand-600">
+                      {getInitials(userProfile.username)}
+                    </AvatarFallback>
+                  )}
+                </Avatar>
+                <span className="text-sm font-medium">{userProfile.username}</span>
+              </div>
+              
+              <Button 
+                variant="outline" 
+                size="sm"
+                iconLeft={<Edit className="h-4 w-4" />}
+                onClick={() => setProfileEditModalOpen(true)}
+              >
+                Edit Profile
+              </Button>
+            </div>
           </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -129,12 +181,7 @@ const DriverProfile = () => {
               <Card className="p-6">
                 <div className="flex flex-col items-center text-center mb-6">
                   <div className="h-24 w-24 rounded-full bg-brand-100 flex items-center justify-center mb-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-brand-600">
-                      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
-                      <circle cx="9" cy="7" r="4"></circle>
-                      <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
-                      <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                    </svg>
+                    <UserRound className="h-12 w-12 text-brand-600" />
                   </div>
                   
                   <h1 className="text-2xl font-bold">{driver.name}</h1>
@@ -194,7 +241,12 @@ const DriverProfile = () => {
                 </div>
                 
                 <div className="mt-6">
-                  <Button variant="outline" className="w-full" iconLeft={<MessageCircle className="h-4 w-4" />}>
+                  <Button 
+                    variant="outline" 
+                    className="w-full" 
+                    iconLeft={<MessageCircle className="h-4 w-4" />}
+                    onClick={() => setContactModalOpen(true)}
+                  >
                     Contact Driver
                   </Button>
                 </div>
@@ -319,6 +371,22 @@ const DriverProfile = () => {
           </div>
         </div>
       </main>
+      
+      {/* Contact Driver Modal */}
+      <ContactDriverModal 
+        driverName={driver.name}
+        isOpen={contactModalOpen}
+        onClose={() => setContactModalOpen(false)}
+      />
+      
+      {/* Profile Edit Modal */}
+      <ProfileEditModal 
+        isOpen={profileEditModalOpen}
+        onClose={() => setProfileEditModalOpen(false)}
+        currentUsername={userProfile.username}
+        currentAvatar={userProfile.avatar}
+        onSave={handleProfileSave}
+      />
     </div>
   );
 };
