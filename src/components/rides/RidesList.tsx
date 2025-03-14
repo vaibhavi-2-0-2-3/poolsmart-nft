@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Card } from '../shared/Card';
@@ -7,7 +6,7 @@ import { Calendar, Clock, MapPin, Users, Star, Info, Filter } from 'lucide-react
 import { useWeb3 } from '@/hooks/useWeb3';
 import { useToast } from '@/hooks/use-toast';
 import { bookRide } from '@/lib/web3';
-import { Ride, getRides, bookRideForUser, searchRides, getDriverById } from '@/lib/db';
+import { Ride, bookRideForUser, searchRides, getDriverById } from '@/lib/firebase';
 import { RidesFilter, FilterOptions } from './RidesFilter';
 
 export const RidesList = ({ searchParams }: { searchParams?: any }) => {
@@ -35,28 +34,55 @@ export const RidesList = ({ searchParams }: { searchParams?: any }) => {
 
   useEffect(() => {
     if (searchParams && Object.keys(searchParams).some(key => searchParams[key])) {
-      const filteredRides = searchRides({
-        from: searchParams.from,
-        to: searchParams.to,
-        date: searchParams.date,
-        time: searchParams.time,
-        seats: searchParams.seats ? parseInt(searchParams.seats) : undefined
-      });
-      setRides(filteredRides);
-      setFilteredRides(filteredRides);
+      const fetchFilteredRides = async () => {
+        setLoading(true);
+        try {
+          const filteredRides = await searchRides({
+            from: searchParams.from,
+            to: searchParams.to,
+            date: searchParams.date,
+            time: searchParams.time,
+            seats: searchParams.seats ? parseInt(searchParams.seats) : undefined
+          });
+          setRides(filteredRides);
+          setFilteredRides(filteredRides);
+        } catch (error) {
+          console.error("Error searching rides:", error);
+          toast({
+            title: "Error",
+            description: "Failed to search rides. Please try again.",
+            variant: "destructive",
+          });
+        } finally {
+          setLoading(false);
+        }
+      };
+      
+      fetchFilteredRides();
     }
-  }, [searchParams]);
+  }, [searchParams, toast]);
 
   useEffect(() => {
     applyFilters(activeFilters);
   }, [rides, activeFilters]);
 
-  const loadRides = () => {
+  const loadRides = async () => {
     setLoading(true);
-    const allRides = getRides();
-    setRides(allRides);
-    setFilteredRides(allRides);
-    setLoading(false);
+    try {
+      const { getRides } = await import('@/lib/firebase');
+      const allRides = await getRides();
+      setRides(allRides);
+      setFilteredRides(allRides);
+    } catch (error) {
+      console.error("Error loading rides:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load rides. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -89,7 +115,7 @@ export const RidesList = ({ searchParams }: { searchParams?: any }) => {
     try {
       const blockchainSuccess = await bookRide(rideId, price);
       
-      const dbSuccess = bookRideForUser(address, rideId);
+      const dbSuccess = await bookRideForUser(address, rideId);
       
       if (blockchainSuccess && dbSuccess) {
         toast({
@@ -127,7 +153,6 @@ export const RidesList = ({ searchParams }: { searchParams?: any }) => {
   const applyFilters = (filters: FilterOptions) => {
     let result = [...rides];
     
-    // Apply price range filter
     if (filters.priceRange.min) {
       result = result.filter(ride => ride.price >= parseFloat(filters.priceRange.min));
     }
@@ -136,12 +161,10 @@ export const RidesList = ({ searchParams }: { searchParams?: any }) => {
       result = result.filter(ride => ride.price <= parseFloat(filters.priceRange.max));
     }
     
-    // Apply verified driver filter
     if (filters.verifiedOnly) {
       result = result.filter(ride => ride.verified);
     }
     
-    // Apply sorting
     if (filters.sortBy) {
       result.sort((a, b) => {
         let comparison = 0;

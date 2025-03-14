@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Navbar } from '@/components/layout/Navbar';
@@ -7,7 +6,7 @@ import { Button } from '@/components/shared/Button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar, Clock, MapPin, Users, Star, Wallet, Car } from 'lucide-react';
 import { useWeb3 } from '@/hooks/useWeb3';
-import { Ride, getUserRides, getRides } from '@/lib/db';
+import { Ride, getUserRides, getRides } from '@/lib/firebase';
 
 const Dashboard = () => {
   const { address } = useWeb3();
@@ -24,19 +23,23 @@ const Dashboard = () => {
     }
   }, [address]);
   
-  const loadUserData = (userAddress: string) => {
+  const loadUserData = async (userAddress: string) => {
     setLoading(true);
     
-    // Get bookings (rides user has booked)
-    const userBookings = getUserRides(userAddress);
-    setMyRides(userBookings);
-    
-    // Get offered rides (rides user has created)
-    const allRides = getRides();
-    const userOfferedRides = allRides.filter(ride => ride.driver.address === userAddress);
-    setOfferedRides(userOfferedRides);
-    
-    setLoading(false);
+    try {
+      // Get bookings (rides user has booked)
+      const userBookings = await getUserRides(userAddress);
+      setMyRides(userBookings);
+      
+      // Get offered rides (rides user has created)
+      const allRides = await getRides();
+      const userOfferedRides = allRides.filter(ride => ride.driver.address === userAddress);
+      setOfferedRides(userOfferedRides);
+    } catch (error) {
+      console.error("Error loading user data:", error);
+    } finally {
+      setLoading(false);
+    }
   };
   
   const formatDate = (dateString: string) => {
