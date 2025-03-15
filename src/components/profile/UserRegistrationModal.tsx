@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -71,6 +72,7 @@ export function UserRegistrationModal({
   };
 
   const onSubmit = (data: FormValues) => {
+    // Ensure all required fields are included in the UserProfileData
     const userData: UserProfileData = {
       username: data.username,
       fullName: data.fullName,

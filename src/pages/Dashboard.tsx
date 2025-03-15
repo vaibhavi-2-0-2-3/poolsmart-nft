@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Navbar } from '@/components/layout/Navbar';
@@ -9,7 +10,7 @@ import { useWeb3 } from '@/hooks/useWeb3';
 import { Ride, getUserRides, getRides } from '@/lib/firebase';
 
 const Dashboard = () => {
-  const { address } = useWeb3();
+  const { address, connect, userProfile } = useWeb3();
   const [activeTab, setActiveTab] = useState('bookings');
   const [myRides, setMyRides] = useState<Ride[]>([]);
   const [offeredRides, setOfferedRides] = useState<Ride[]>([]);
@@ -58,6 +59,14 @@ const Dashboard = () => {
       minute: '2-digit' 
     });
   };
+
+  const handleConnectWallet = async () => {
+    try {
+      await connect();
+    } catch (error) {
+      console.error("Error connecting wallet:", error);
+    }
+  };
   
   if (!address) {
     return (
@@ -72,7 +81,13 @@ const Dashboard = () => {
                 Please connect your wallet to access your dashboard.
               </p>
               <div className="max-w-xs mx-auto">
-                {/* Wallet connect button will be shown in the navbar */}
+                <Button 
+                  variant="primary"
+                  onClick={handleConnectWallet}
+                  iconLeft={<Wallet className="h-4 w-4" />}
+                >
+                  Connect Wallet
+                </Button>
               </div>
             </Card>
           </div>

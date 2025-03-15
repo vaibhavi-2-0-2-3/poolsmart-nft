@@ -1,147 +1,59 @@
 import React, { useState } from 'react';
 import { Navbar } from '@/components/layout/Navbar';
 import RidesList from '@/components/rides/RidesList';
+import { RidesFilter } from '@/components/rides/RidesFilter';
 import { useWeb3 } from '@/hooks/useWeb3';
-import { Input } from '@/components/ui/input';
+import { collection, addDoc } from 'firebase/firestore';
+import { db, Ride, createRide } from '@/lib/firebase';
+import { PaymentModal } from '@/components/rides/PaymentModal';
+import { Car, CalendarClock, MapPin, CreditCard, Clock, Users } from 'lucide-react';
 import { Button } from '@/components/shared/Button';
 import { Card } from '@/components/shared/Card';
-import { 
-  Dialog, 
-  DialogTrigger, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogDescription,
-  DialogFooter
-} from '@/components/ui/dialog';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { MapPin, Calendar, Clock, Users, Wallet, Car } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { useNavigate } from 'react-router-dom';
-import { createRide } from '@/lib/firebase';
+import { toast } from '@/hooks/use-toast';
+import { UserRegistrationModal, UserProfileData } from '@/components/profile/UserRegistrationModal';
 
-const offerRideSchema = z.object({
-  from: z.string().min(3, { message: 'Departure location is required' }),
-  to: z.string().min(3, { message: 'Destination is required' }),
-  date: z.string().min(1, { message: 'Date is required' }),
-  time: z.string().min(1, { message: 'Time is required' }),
-  seats: z.string().min(1, { message: 'Available seats is required' }),
-  price: z.string().min(1, { message: 'Price is required' })
-});
+type SearchParams = {
+  from: string;
+  to: string;
+  date: string;
+  time: string;
+  seats: string;
+};
 
 const Rides = () => {
-  const { address } = useWeb3();
-  const { toast } = useToast();
-  const navigate = useNavigate();
-  const [isOfferDialogOpen, setIsOfferDialogOpen] = useState(false);
-  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
-  const [searchParams, setSearchParams] = useState({
+  const { address, connect, userProfile, completeRegistration } = useWeb3();
+  const [searchParams, setSearchParams] = useState<SearchParams>({
     from: '',
     to: '',
     date: '',
     time: '',
-    seats: '1'
+    seats: '1',
   });
-  const [searchSubmitted, setSearchSubmitted] = useState(false);
+  const [showRegistration, setShowRegistration] = useState(false);
+  const [pendingAddress, setPendingAddress] = useState<string | null>(null);
 
-  const form = useForm<z.infer<typeof offerRideSchema>>({
-    resolver: zodResolver(offerRideSchema),
-    defaultValues: {
-      from: '',
-      to: '',
-      date: '',
-      time: '',
-      seats: '1',
-      price: '0.01'
-    }
-  });
-
-  const handleSearchParamChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setSearchParams(prev => ({ ...prev, [name]: value }));
+  const handleSearch = (params: SearchParams) => {
+    setSearchParams(params);
   };
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!searchParams.from || !searchParams.to) {
-      toast({
-        title: "Missing information",
-        description: "Please provide departure and destination locations",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    toast({
-      title: "Searching rides",
-      description: "Finding available rides matching your criteria...",
-    });
-
-    setSearchSubmitted(true);
-    
-    setTimeout(() => {
-      setSearchSubmitted(false);
-    }, 100);
-  };
-
-  const onOfferRideSubmit = async (values: z.infer<typeof offerRideSchema>) => {
-    if (!address) {
-      toast({
-        title: "Wallet not connected",
-        description: "Please connect your wallet to offer a ride",
-        variant: "destructive",
-      });
-      return;
-    }
-    
+  const handleConnectWallet = async () => {
     try {
-      const driverId = address.substring(0, 6);
+      const walletAddress = await connect();
       
-      const newRide = {
-        driver: {
-          id: driverId,
-          name: `Driver ${address.substring(0, 4)}`,
-          address: address,
-          rating: 5.0,
-        },
-        departure: {
-          location: values.from,
-          time: `${values.date}T${values.time}:00`,
-        },
-        destination: {
-          location: values.to,
-        },
-        price: parseFloat(values.price),
-        seatsAvailable: parseInt(values.seats),
-        status: 'active' as const,
-        passengers: []
-      };
-      
-      await createRide(newRide);
-      
-      toast({
-        title: "Ride offered",
-        description: "Your ride has been listed successfully",
-      });
-      
-      setIsOfferDialogOpen(false);
-      form.reset();
-      
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 1500);
+      if (walletAddress && !userProfile) {
+        setPendingAddress(walletAddress);
+        setShowRegistration(true);
+      }
     } catch (error) {
-      console.error("Error offering ride:", error);
-      toast({
-        title: "Transaction error",
-        description: "There was an error with the database transaction",
-        variant: "destructive",
-      });
+      console.error("Connection error:", error);
     }
+  };
+
+  const handleCompleteRegistration = (userData: UserProfileData) => {
+    if (completeRegistration) {
+      completeRegistration(userData);
+    }
+    setPendingAddress(null);
   };
 
   return (
@@ -149,252 +61,89 @@ const Rides = () => {
       <Navbar />
       <main className="flex-grow pt-24 pb-16">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <Card className="md:col-span-2 p-6">
-              <form onSubmit={handleSearch}>
-                <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 ${isSearchExpanded ? 'mb-4' : ''}`}>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                      <MapPin className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    <Input 
-                      type="text" 
-                      name="from"
-                      placeholder="From" 
-                      className="pl-10"
-                      value={searchParams.from}
-                      onChange={handleSearchParamChange}
-                      onClick={() => setIsSearchExpanded(true)}
-                    />
-                  </div>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                      <MapPin className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    <Input 
-                      type="text" 
-                      name="to"
-                      placeholder="To" 
-                      className="pl-10"
-                      value={searchParams.to}
-                      onChange={handleSearchParamChange}
-                      onClick={() => setIsSearchExpanded(true)}
-                    />
-                  </div>
-                </div>
-                
-                {isSearchExpanded && (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                      <Input 
-                        type="date" 
-                        name="date"
-                        className="pl-10" 
-                        value={searchParams.date}
-                        onChange={handleSearchParamChange}
-                      />
-                    </div>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                        <Clock className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                      <Input 
-                        type="time" 
-                        name="time"
-                        className="pl-10" 
-                        value={searchParams.time}
-                        onChange={handleSearchParamChange}
-                      />
-                    </div>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                        <Users className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                      <Input 
-                        type="number" 
-                        name="seats"
-                        min="1" 
-                        max="10" 
-                        className="pl-10"
-                        value={searchParams.seats}
-                        onChange={handleSearchParamChange}
-                      />
-                    </div>
-                  </div>
-                )}
-                
-                <div className="flex justify-end mt-4">
-                  <Button 
-                    type="submit" 
-                    variant="primary"
-                  >
-                    Search Rides
-                  </Button>
-                </div>
-              </form>
-            </Card>
-            
-            <Card className="p-6 flex flex-col justify-center items-center text-center">
-              <Car className="h-12 w-12 text-brand-600 mb-4" />
-              <h3 className="text-lg font-medium mb-3">Have a car? Offer a ride</h3>
-              <p className="text-muted-foreground mb-4">
-                Share your ride, reduce costs and help reduce carbon emissions.
-              </p>
-              <Dialog open={isOfferDialogOpen} onOpenChange={setIsOfferDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="primary">Offer a Ride</Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[500px]">
-                  <DialogHeader>
-                    <DialogTitle>Offer a Ride</DialogTitle>
-                    <DialogDescription>
-                      Fill in the details below to offer your ride on the blockchain.
-                    </DialogDescription>
-                  </DialogHeader>
-                  
-                  <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onOfferRideSubmit)} className="space-y-4">
-                      <div className="grid grid-cols-1 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="from"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>From</FormLabel>
-                              <FormControl>
-                                <div className="relative">
-                                  <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                                    <MapPin className="h-4 w-4 text-muted-foreground" />
-                                  </div>
-                                  <Input placeholder="Departure location" className="pl-10" {...field} />
-                                </div>
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        <FormField
-                          control={form.control}
-                          name="to"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>To</FormLabel>
-                              <FormControl>
-                                <div className="relative">
-                                  <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                                    <MapPin className="h-4 w-4 text-muted-foreground" />
-                                  </div>
-                                  <Input placeholder="Destination" className="pl-10" {...field} />
-                                </div>
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        <div className="grid grid-cols-2 gap-4">
-                          <FormField
-                            control={form.control}
-                            name="date"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Date</FormLabel>
-                                <FormControl>
-                                  <div className="relative">
-                                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                                    </div>
-                                    <Input type="date" className="pl-10" {...field} />
-                                  </div>
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          
-                          <FormField
-                            control={form.control}
-                            name="time"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Time</FormLabel>
-                                <FormControl>
-                                  <div className="relative">
-                                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                                      <Clock className="h-4 w-4 text-muted-foreground" />
-                                    </div>
-                                    <Input type="time" className="pl-10" {...field} />
-                                  </div>
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-4">
-                          <FormField
-                            control={form.control}
-                            name="seats"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Available Seats</FormLabel>
-                                <FormControl>
-                                  <div className="relative">
-                                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                                      <Users className="h-4 w-4 text-muted-foreground" />
-                                    </div>
-                                    <Input type="number" min="1" max="10" className="pl-10" {...field} />
-                                  </div>
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          
-                          <FormField
-                            control={form.control}
-                            name="price"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Price (ETH)</FormLabel>
-                                <FormControl>
-                                  <div className="relative">
-                                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                                      <Wallet className="h-4 w-4 text-muted-foreground" />
-                                    </div>
-                                    <Input type="number" min="0.001" step="0.001" className="pl-10" {...field} />
-                                  </div>
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                      </div>
-                      
-                      <DialogFooter>
-                        <Button 
-                          type="submit" 
-                          variant="primary"
-                        >
-                          List Ride
-                        </Button>
-                      </DialogFooter>
-                    </form>
-                  </Form>
-                </DialogContent>
-              </Dialog>
-            </Card>
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold mb-2">Find a Ride</h1>
+            <p className="text-muted-foreground">
+              Search for available rides or offer your own
+            </p>
           </div>
-          
-          <RidesList searchParams={searchSubmitted ? searchParams : undefined} />
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <RidesFilter onSearch={handleSearch} />
+              
+              {!address ? (
+                <Card className="mt-6 p-8 text-center">
+                  <Car className="h-12 w-12 text-brand-600 mx-auto mb-4" />
+                  <h2 className="text-2xl font-semibold mb-4">Connect Your Wallet</h2>
+                  <p className="text-muted-foreground mb-6">
+                    To book a ride or offer your own, please connect your wallet first.
+                  </p>
+                  <div className="max-w-xs mx-auto">
+                    <Button 
+                      variant="primary"
+                      onClick={handleConnectWallet}
+                      iconLeft={<CreditCard className="h-4 w-4" />}
+                      className="w-full"
+                    >
+                      Connect Wallet
+                    </Button>
+                  </div>
+                </Card>
+              ) : (
+                <RidesList searchParams={searchParams} />
+              )}
+            </div>
+
+            {/* Sidebar Content */}
+            <div className="lg:col-span-1">
+              <Card className="p-6">
+                <h3 className="text-xl font-semibold mb-4">Offer a Ride</h3>
+                <p className="text-muted-foreground mb-6">
+                  Share your journey and earn cryptocurrency.
+                </p>
+                <Button variant="secondary" className="w-full" asChild>
+                  <a href="/rides">
+                    <CalendarClock className="h-4 w-4 mr-2" />
+                    List a Ride
+                  </a>
+                </Button>
+              </Card>
+              
+              <Card className="p-6 mt-6">
+                <h3 className="text-xl font-semibold mb-4">Popular Destinations</h3>
+                <ul className="space-y-2">
+                  <li className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <span>New York, NY</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <span>Los Angeles, CA</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <span>Chicago, IL</span>
+                  </li>
+                </ul>
+              </Card>
+            </div>
+          </div>
         </div>
       </main>
+      
+      {/* Registration Modal */}
+      {showRegistration && pendingAddress && (
+        <UserRegistrationModal
+          isOpen={showRegistration}
+          onClose={() => {
+            setShowRegistration(false);
+            setPendingAddress(null);
+          }}
+          onComplete={handleCompleteRegistration}
+          walletAddress={pendingAddress}
+        />
+      )}
     </div>
   );
 };

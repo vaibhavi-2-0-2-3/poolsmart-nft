@@ -99,6 +99,10 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
             title: "Wallet connected",
             description: "Welcome back, " + profile.username,
           });
+        } else {
+          // If no profile exists, persist the wallet connection but don't show welcome message yet
+          localStorage.setItem('walletConnected', 'true');
+          localStorage.setItem('walletAddress', walletAddress);
         }
         
         return walletAddress;
@@ -127,10 +131,6 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
       const profile = await getUserProfile(userData.walletAddress);
       if (profile) {
         setUserProfile(profile);
-        
-        // Store connection in localStorage to persist between refreshes
-        localStorage.setItem('walletConnected', 'true');
-        localStorage.setItem('walletAddress', userData.walletAddress);
         
         toast({
           title: "Profile created",
@@ -259,7 +259,15 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
         isConnecting,
         userProfile,
         connect,
-        disconnect,
+        disconnect: () => {
+          setAddress(null);
+          setBalance(null);
+          setUserProfile(null);
+          
+          // Remove wallet connection from localStorage
+          localStorage.removeItem('walletConnected');
+          localStorage.removeItem('walletAddress');
+        },
         completeRegistration,
       }}
     >
