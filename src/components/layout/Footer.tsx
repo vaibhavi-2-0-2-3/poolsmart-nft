@@ -1,7 +1,6 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Twitter, Github, Discord } from 'lucide-react';
+import { Twitter, Github, MessageCircle } from 'lucide-react';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -108,7 +107,7 @@ const Footer = () => {
                 className="text-muted-foreground hover:text-brand-600 transition-colors"
                 aria-label="Discord"
               >
-                <Discord className="h-5 w-5" />
+                <MessageCircle className="h-5 w-5" />
               </a>
               <a 
                 href="https://github.com" 
