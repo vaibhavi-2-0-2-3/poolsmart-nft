@@ -174,8 +174,8 @@ const Rides = () => {
                       return;
                     }
                     
-                    // Redirect to create ride page or open modal
-                    window.location.href = "/create-ride";
+                    // Redirect to dashboard instead of non-existent create-ride page
+                    window.location.href = "/dashboard";
                   }}
                 >
                   <CalendarClock className="h-4 w-4 mr-2" />

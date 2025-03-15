@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Twitter, Github, MessageCircle } from 'lucide-react';
@@ -56,14 +57,9 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
-                <a 
-                  href="https://github.com" 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="text-sm text-muted-foreground hover:text-brand-600 transition-colors"
-                >
+                <Link to="https://github.com" className="text-sm text-muted-foreground hover:text-brand-600 transition-colors">
                   GitHub
-                </a>
+                </Link>
               </li>
             </ul>
           </div>
