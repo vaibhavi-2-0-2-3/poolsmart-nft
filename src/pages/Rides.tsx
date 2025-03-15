@@ -1,10 +1,10 @@
+
 import React, { useState } from 'react';
 import { Navbar } from '@/components/layout/Navbar';
 import RidesList from '@/components/rides/RidesList';
 import { RidesFilter } from '@/components/rides/RidesFilter';
 import { useWeb3 } from '@/hooks/useWeb3';
-import { collection, addDoc } from 'firebase/firestore';
-import { db, Ride, createRide } from '@/lib/firebase';
+import { Ride, createRide } from '@/lib/firebase';
 import { PaymentModal } from '@/components/rides/PaymentModal';
 import { Car, CalendarClock, MapPin, CreditCard, Clock, Users } from 'lucide-react';
 import { Button } from '@/components/shared/Button';
@@ -31,6 +31,7 @@ const Rides = () => {
   });
   const [showRegistration, setShowRegistration] = useState(false);
   const [pendingAddress, setPendingAddress] = useState<string | null>(null);
+  const [filterDialogOpen, setFilterDialogOpen] = useState(false);
 
   const handleSearch = (params: SearchParams) => {
     setSearchParams(params);
@@ -70,7 +71,14 @@ const Rides = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
-              <RidesFilter onSearch={handleSearch} />
+              <RidesFilter 
+                open={filterDialogOpen} 
+                onOpenChange={setFilterDialogOpen} 
+                onApplyFilters={(filterOptions) => {
+                  console.log('Filter options:', filterOptions);
+                  // Apply filters to rides
+                }}
+              />
               
               {!address ? (
                 <Card className="mt-6 p-8 text-center">
@@ -91,7 +99,7 @@ const Rides = () => {
                   </div>
                 </Card>
               ) : (
-                <RidesList searchParams={searchParams} />
+                <RidesList />
               )}
             </div>
 

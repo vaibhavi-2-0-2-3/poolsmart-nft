@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/shared/Card';
 import { Button } from '@/components/shared/Button';
@@ -8,7 +9,18 @@ import { Ride, getRides, bookRide } from '@/lib/firebase';
 import { useWeb3 } from '@/hooks/useWeb3';
 import { useToast } from '@/hooks/use-toast';
 
-const RidesList = () => {
+// Add the optional searchParams prop to improve flexibility
+interface RidesListProps {
+  searchParams?: {
+    from?: string;
+    to?: string;
+    date?: string;
+    time?: string;
+    seats?: string;
+  };
+}
+
+const RidesList: React.FC<RidesListProps> = ({ searchParams }) => {
   const [rides, setRides] = useState<Ride[]>([]);
   const [loading, setLoading] = useState(true);
   const { address } = useWeb3();
@@ -18,6 +30,13 @@ const RidesList = () => {
     loadRides();
   }, []);
   
+  // Add a useEffect to filter rides when searchParams changes
+  useEffect(() => {
+    if (searchParams && (searchParams.from || searchParams.to || searchParams.date)) {
+      filterRides();
+    }
+  }, [searchParams]);
+  
   const loadRides = async () => {
     setLoading(true);
     try {
@@ -25,6 +44,48 @@ const RidesList = () => {
       setRides(ridesData);
     } catch (error) {
       console.error("Error loading rides:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const filterRides = async () => {
+    if (!searchParams) return;
+    
+    setLoading(true);
+    try {
+      const allRides = await getRides();
+      let filteredRides = [...allRides];
+      
+      if (searchParams.from) {
+        filteredRides = filteredRides.filter(ride => 
+          ride.departure.location.toLowerCase().includes(searchParams.from?.toLowerCase() || '')
+        );
+      }
+      
+      if (searchParams.to) {
+        filteredRides = filteredRides.filter(ride => 
+          ride.destination.location.toLowerCase().includes(searchParams.to?.toLowerCase() || '')
+        );
+      }
+      
+      if (searchParams.date) {
+        filteredRides = filteredRides.filter(ride => {
+          const rideDate = new Date(ride.departure.time).toLocaleDateString();
+          const searchDate = new Date(searchParams.date || '').toLocaleDateString();
+          return rideDate === searchDate;
+        });
+      }
+      
+      if (searchParams.seats) {
+        filteredRides = filteredRides.filter(ride => 
+          ride.seatsAvailable >= parseInt(searchParams.seats || '1', 10)
+        );
+      }
+      
+      setRides(filteredRides);
+    } catch (error) {
+      console.error("Error filtering rides:", error);
     } finally {
       setLoading(false);
     }
@@ -88,9 +149,7 @@ const RidesList = () => {
   };
   
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6">Available Rides</h1>
-      
+    <div className="mt-6">
       {loading ? (
         <Card className="p-8">
           <div className="flex justify-center">
@@ -102,7 +161,7 @@ const RidesList = () => {
           <p className="text-lg text-muted-foreground">No rides available at the moment.</p>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-6">
           {rides.map((ride) => (
             <Card key={ride.id} className="overflow-hidden">
               <div className="p-6">
