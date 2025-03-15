@@ -1,27 +1,34 @@
 
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { toast } from '@/hooks/use-toast';
+import { getUserProfile, createUserProfile, UserProfile } from '@/lib/firebase';
+import { UserProfileData } from '@/components/profile/UserRegistrationModal';
 
 interface Web3ContextType {
   address: string | null;
   balance: string | null;
   isConnecting: boolean;
-  connect: () => Promise<void>;
+  userProfile: UserProfile | null;
+  connect: () => Promise<string | null>;
   disconnect: () => void;
+  completeRegistration: (userData: UserProfileData) => Promise<boolean>;
 }
 
 const Web3Context = createContext<Web3ContextType>({
   address: null,
   balance: null,
   isConnecting: false,
-  connect: async () => {},
+  userProfile: null,
+  connect: async () => null,
   disconnect: () => {},
+  completeRegistration: async () => false,
 });
 
 export const Web3Provider = ({ children }: { children: ReactNode }) => {
   const [address, setAddress] = useState<string | null>(null);
   const [balance, setBalance] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   // Check if MetaMask is installed
   const isMetaMaskInstalled = () => {
@@ -53,14 +60,14 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
   };
 
   // Connect wallet
-  const connect = async () => {
+  const connect = async (): Promise<string | null> => {
     if (!isMetaMaskInstalled()) {
       toast({
         title: "MetaMask not detected",
         description: "Please install MetaMask browser extension to connect",
         variant: "destructive",
       });
-      return;
+      return null;
     }
 
     setIsConnecting(true);
@@ -72,21 +79,32 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
       });
       
       if (accounts.length > 0) {
-        setAddress(accounts[0]);
+        const walletAddress = accounts[0];
+        setAddress(walletAddress);
         
         // Get and set balance
-        const currentBalance = await getBalance(accounts[0]);
+        const currentBalance = await getBalance(walletAddress);
         setBalance(currentBalance);
         
-        // Store connection in localStorage to persist between refreshes
-        localStorage.setItem('walletConnected', 'true');
-        localStorage.setItem('walletAddress', accounts[0]);
+        // Check if user profile exists
+        const profile = await getUserProfile(walletAddress);
+        if (profile) {
+          setUserProfile(profile);
+          
+          // Store connection in localStorage to persist between refreshes
+          localStorage.setItem('walletConnected', 'true');
+          localStorage.setItem('walletAddress', walletAddress);
+          
+          toast({
+            title: "Wallet connected",
+            description: "Welcome back, " + profile.username,
+          });
+        }
         
-        toast({
-          title: "Wallet connected",
-          description: "Your wallet has been successfully connected",
-        });
+        return walletAddress;
       }
+      
+      return null;
     } catch (error: any) {
       console.error('Error connecting wallet:', error);
       toast({
@@ -94,8 +112,43 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
         description: error?.message || "Failed to connect wallet",
         variant: "destructive",
       });
+      return null;
     } finally {
       setIsConnecting(false);
+    }
+  };
+
+  // Complete user registration
+  const completeRegistration = async (userData: UserProfileData): Promise<boolean> => {
+    try {
+      await createUserProfile(userData);
+      
+      // Get the created profile
+      const profile = await getUserProfile(userData.walletAddress);
+      if (profile) {
+        setUserProfile(profile);
+        
+        // Store connection in localStorage to persist between refreshes
+        localStorage.setItem('walletConnected', 'true');
+        localStorage.setItem('walletAddress', userData.walletAddress);
+        
+        toast({
+          title: "Profile created",
+          description: "Your profile has been created successfully",
+        });
+        
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Error creating user profile:', error);
+      toast({
+        title: "Registration failed",
+        description: "Failed to create your profile. Please try again.",
+        variant: "destructive",
+      });
+      return false;
     }
   };
 
@@ -103,6 +156,7 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
   const disconnect = () => {
     setAddress(null);
     setBalance(null);
+    setUserProfile(null);
     
     // Remove wallet connection from localStorage
     localStorage.removeItem('walletConnected');
@@ -115,16 +169,24 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
       // User disconnected their wallet
       disconnect();
     } else if (accounts[0] !== address) {
-      setAddress(accounts[0]);
-      const currentBalance = await getBalance(accounts[0]);
+      const newAddress = accounts[0];
+      setAddress(newAddress);
+      
+      const currentBalance = await getBalance(newAddress);
       setBalance(currentBalance);
       
+      // Check if profile exists for new address
+      const profile = await getUserProfile(newAddress);
+      setUserProfile(profile);
+      
       // Update localStorage with new address
-      localStorage.setItem('walletAddress', accounts[0]);
+      localStorage.setItem('walletAddress', newAddress);
       
       toast({
-        title: "Account changed",
-        description: `Connected to ${accounts[0].slice(0, 6)}...${accounts[0].slice(-4)}`,
+        title: profile ? "Account changed" : "New account detected",
+        description: profile 
+          ? `Welcome back, ${profile.username}` 
+          : `Connected to ${newAddress.slice(0, 6)}...${newAddress.slice(-4)}. Please complete your profile.`,
       });
     }
   };
@@ -155,6 +217,10 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
             setAddress(accounts[0]);
             const currentBalance = await getBalance(accounts[0]);
             setBalance(currentBalance);
+            
+            // Load user profile
+            const profile = await getUserProfile(accounts[0]);
+            setUserProfile(profile);
           } else {
             // If MetaMask no longer has the account, clear localStorage
             localStorage.removeItem('walletConnected');
@@ -191,8 +257,10 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
         address,
         balance,
         isConnecting,
+        userProfile,
         connect,
         disconnect,
+        completeRegistration,
       }}
     >
       {children}
