@@ -6,11 +6,12 @@ import { RidesFilter } from '@/components/rides/RidesFilter';
 import { useWeb3 } from '@/hooks/useWeb3';
 import { Ride, createRide } from '@/lib/firebase';
 import { PaymentModal } from '@/components/rides/PaymentModal';
-import { Car, CalendarClock, MapPin, CreditCard, Clock, Users } from 'lucide-react';
+import { Car, CalendarClock, MapPin, CreditCard, Clock, Users, Search } from 'lucide-react';
 import { Button } from '@/components/shared/Button';
 import { Card } from '@/components/shared/Card';
 import { toast } from '@/hooks/use-toast';
 import { UserRegistrationModal, UserProfileData } from '@/components/profile/UserRegistrationModal';
+import { Input } from '@/components/ui/input';
 
 type SearchParams = {
   from: string;
@@ -32,6 +33,7 @@ const Rides = () => {
   const [showRegistration, setShowRegistration] = useState(false);
   const [pendingAddress, setPendingAddress] = useState<string | null>(null);
   const [filterDialogOpen, setFilterDialogOpen] = useState(false);
+  const [showCreateRideForm, setShowCreateRideForm] = useState(false);
 
   const handleSearch = (params: SearchParams) => {
     setSearchParams(params);
@@ -69,6 +71,55 @@ const Rides = () => {
             </p>
           </div>
 
+          {/* Search Bar */}
+          <Card className="mb-6 p-6">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+              <div className="md:col-span-2">
+                <label htmlFor="from" className="block text-sm font-medium text-gray-700 mb-1">From</label>
+                <div className="relative rounded-md">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <MapPin className="h-4 w-4 text-gray-400" />
+                  </div>
+                  <Input
+                    id="from"
+                    type="text"
+                    placeholder="Departure location"
+                    className="pl-10"
+                    value={searchParams.from}
+                    onChange={(e) => setSearchParams({...searchParams, from: e.target.value})}
+                  />
+                </div>
+              </div>
+              <div className="md:col-span-2">
+                <label htmlFor="to" className="block text-sm font-medium text-gray-700 mb-1">To</label>
+                <div className="relative rounded-md">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <MapPin className="h-4 w-4 text-gray-400" />
+                  </div>
+                  <Input
+                    id="to"
+                    type="text"
+                    placeholder="Destination"
+                    className="pl-10"
+                    value={searchParams.to}
+                    onChange={(e) => setSearchParams({...searchParams, to: e.target.value})}
+                  />
+                </div>
+              </div>
+              <div className="md:col-span-1">
+                <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">&#8203;</label>
+                <Button 
+                  variant="primary" 
+                  className="w-full"
+                  onClick={() => handleSearch(searchParams)}
+                  iconLeft={<Search className="h-4 w-4" />}
+                >
+                  Search
+                </Button>
+              </div>
+            </div>
+          </Card>
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
               <RidesFilter 
@@ -99,7 +150,7 @@ const Rides = () => {
                   </div>
                 </Card>
               ) : (
-                <RidesList />
+                <RidesList searchParams={searchParams} />
               )}
             </div>
 
@@ -110,11 +161,25 @@ const Rides = () => {
                 <p className="text-muted-foreground mb-6">
                   Share your journey and earn cryptocurrency.
                 </p>
-                <Button variant="secondary" className="w-full" asChild>
-                  <a href="/rides">
-                    <CalendarClock className="h-4 w-4 mr-2" />
-                    List a Ride
-                  </a>
+                <Button 
+                  variant="secondary" 
+                  className="w-full"
+                  onClick={() => {
+                    if (!address) {
+                      toast({
+                        title: "Wallet not connected",
+                        description: "Please connect your wallet to list a ride.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                    
+                    // Redirect to create ride page or open modal
+                    window.location.href = "/create-ride";
+                  }}
+                >
+                  <CalendarClock className="h-4 w-4 mr-2" />
+                  List a Ride
                 </Button>
               </Card>
               
