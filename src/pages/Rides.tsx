@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Navbar } from '@/components/layout/Navbar';
-import { RidesList } from '@/components/rides/RidesList';
+import RidesList from '@/components/rides/RidesList';
 import { useWeb3 } from '@/hooks/useWeb3';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/shared/Button';
@@ -21,7 +21,7 @@ import * as z from 'zod';
 import { MapPin, Calendar, Clock, Users, Wallet, Car } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
-import { addRide } from '@/lib/firebase';
+import { createRide } from '@/lib/firebase';
 
 const offerRideSchema = z.object({
   from: z.string().min(3, { message: 'Departure location is required' }),
@@ -102,22 +102,11 @@ const Rides = () => {
       const driverId = address.substring(0, 6);
       
       const newRide = {
-        id: Date.now().toString(),
         driver: {
           id: driverId,
           name: `Driver ${address.substring(0, 4)}`,
           address: address,
           rating: 5.0,
-          reviewCount: 0,
-          bio: "New driver on the platform",
-          completedRides: 0,
-          joinedDate: new Date().toISOString().split('T')[0],
-          car: {
-            model: "Unknown",
-            year: "2023",
-            color: "Unknown"
-          },
-          verified: false
         },
         departure: {
           location: values.from,
@@ -128,12 +117,11 @@ const Rides = () => {
         },
         price: parseFloat(values.price),
         seatsAvailable: parseInt(values.seats),
-        verified: false,
         status: 'active' as const,
         passengers: []
       };
       
-      await addRide(newRide);
+      await createRide(newRide);
       
       toast({
         title: "Ride offered",

@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -73,8 +72,12 @@ export function UserRegistrationModal({
 
   const onSubmit = (data: FormValues) => {
     const userData: UserProfileData = {
-      ...data,
-      avatar: avatarPreview,
+      username: data.username,
+      fullName: data.fullName,
+      bio: data.bio || "",
+      email: data.email,
+      phone: data.phone || "",
+      avatar: avatarPreview || "",
       walletAddress
     };
     
