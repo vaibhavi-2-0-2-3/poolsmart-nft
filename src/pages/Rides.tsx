@@ -12,6 +12,7 @@ import { Card } from '@/components/shared/Card';
 import { toast } from '@/hooks/use-toast';
 import { UserRegistrationModal, UserProfileData } from '@/components/profile/UserRegistrationModal';
 import { Input } from '@/components/ui/input';
+import { CreateRideModal } from '@/components/rides/CreateRideModal';
 
 type SearchParams = {
   from: string;
@@ -34,6 +35,7 @@ const Rides = () => {
   const [pendingAddress, setPendingAddress] = useState<string | null>(null);
   const [filterDialogOpen, setFilterDialogOpen] = useState(false);
   const [showCreateRideForm, setShowCreateRideForm] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const handleSearch = (params: SearchParams) => {
     setSearchParams(params);
@@ -57,6 +59,15 @@ const Rides = () => {
       completeRegistration(userData);
     }
     setPendingAddress(null);
+  };
+
+  const handleCreateRideSuccess = () => {
+    // Increment to trigger refresh of RidesList
+    setRefreshTrigger(prev => prev + 1);
+    toast({
+      title: "Success",
+      description: "Your ride has been listed successfully!",
+    });
   };
 
   return (
@@ -150,7 +161,7 @@ const Rides = () => {
                   </div>
                 </Card>
               ) : (
-                <RidesList searchParams={searchParams} />
+                <RidesList searchParams={searchParams} refreshTrigger={refreshTrigger} />
               )}
             </div>
 
@@ -174,8 +185,8 @@ const Rides = () => {
                       return;
                     }
                     
-                    // Redirect to dashboard instead of non-existent create-ride page
-                    window.location.href = "/dashboard";
+                    // Open the create ride modal instead of redirecting
+                    setShowCreateRideForm(true);
                   }}
                 >
                   <CalendarClock className="h-4 w-4 mr-2" />
@@ -217,6 +228,13 @@ const Rides = () => {
           walletAddress={pendingAddress}
         />
       )}
+
+      {/* Create Ride Modal */}
+      <CreateRideModal
+        isOpen={showCreateRideForm}
+        onClose={() => setShowCreateRideForm(false)}
+        onSuccess={handleCreateRideSuccess}
+      />
     </div>
   );
 };
