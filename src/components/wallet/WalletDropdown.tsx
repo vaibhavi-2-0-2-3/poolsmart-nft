@@ -3,13 +3,12 @@ import React from 'react';
 import { Card } from '../shared/Card';
 import { Button } from '../shared/Button';
 import { Copy, LogOut } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { UserProfileData } from '../profile/UserRegistrationModal';
+import { UserProfile } from '@/lib/firebase';
 
 interface WalletDropdownProps {
   address: string;
   balance: string;
-  userProfile: UserProfileData | null;
+  userProfile: UserProfile | null;
   onDisconnect: () => void;
   onCopyAddress: () => void;
 }

@@ -1,3 +1,4 @@
+
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { getUserProfile, createUserProfile, UserProfile } from '@/lib/firebase';
@@ -79,21 +80,24 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
         const currentBalance = await getBalance(walletAddress);
         setBalance(currentBalance);
         
+        // Try to get user profile but don't require it
         const profile = await getUserProfile(walletAddress);
         if (profile) {
           setUserProfile(profile);
-          
-          localStorage.setItem('walletConnected', 'true');
-          localStorage.setItem('walletAddress', walletAddress);
           
           toast({
             title: "Wallet connected",
             description: "Welcome back, " + profile.username,
           });
         } else {
-          localStorage.setItem('walletConnected', 'true');
-          localStorage.setItem('walletAddress', walletAddress);
+          toast({
+            title: "Wallet connected",
+            description: "Connected to " + shortenAddress(walletAddress),
+          });
         }
+        
+        localStorage.setItem('walletConnected', 'true');
+        localStorage.setItem('walletAddress', walletAddress);
         
         return walletAddress;
       }
@@ -170,7 +174,7 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
         title: profile ? "Account changed" : "New account detected",
         description: profile 
           ? `Welcome back, ${profile.username}` 
-          : `Connected to ${newAddress.slice(0, 6)}...${newAddress.slice(-4)}. Please complete your profile.`,
+          : `Connected to ${shortenAddress(newAddress)}`,
       });
     }
   };
@@ -241,6 +245,11 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
       {children}
     </Web3Context.Provider>
   );
+};
+
+// Helper function for address shortening
+const shortenAddress = (address: string): string => {
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
 };
 
 export const useWeb3 = () => useContext(Web3Context);
