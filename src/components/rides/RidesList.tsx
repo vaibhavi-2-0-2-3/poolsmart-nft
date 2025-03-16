@@ -8,6 +8,7 @@ import { RideActions } from './RideActions';
 import { useWeb3 } from '@/hooks/useWeb3';
 import { useToast } from '@/hooks/use-toast';
 import { Link } from 'react-router-dom';
+import { PaymentModal } from './PaymentModal';
 
 interface RidesListProps {
   searchParams?: {
@@ -17,12 +18,14 @@ interface RidesListProps {
     time?: string;
     seats?: string;
   };
-  refreshTrigger?: number; // Added refreshTrigger prop
+  refreshTrigger?: number;
 }
 
 const RidesList: React.FC<RidesListProps> = ({ searchParams = {}, refreshTrigger = 0 }) => {
   const [rides, setRides] = useState<Ride[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedRide, setSelectedRide] = useState<Ride | null>(null);
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const { address, connect, userProfile } = useWeb3();
   const { toast } = useToast();
 
@@ -76,7 +79,7 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams = {}, refreshTrigger
     };
     
     fetchRides();
-  }, [searchParams, refreshTrigger]); // Added refreshTrigger dependency
+  }, [searchParams, refreshTrigger]);
 
   const handleStatusChange = async () => {
     // Refresh rides when status changes
@@ -93,7 +96,24 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams = {}, refreshTrigger
       await connect();
     } catch (error) {
       console.error("Connection error:", error);
+      toast({
+        title: "Connection error",
+        description: "Failed to connect wallet. Please try again.",
+        variant: "destructive",
+      });
     }
+  };
+
+  const handleBookRide = (ride: Ride) => {
+    setSelectedRide(ride);
+    setPaymentModalOpen(true);
+  };
+
+  const handlePaymentSuccess = () => {
+    // Refresh rides after payment
+    handleStatusChange();
+    setPaymentModalOpen(false);
+    setSelectedRide(null);
   };
 
   if (loading) {
@@ -190,10 +210,7 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams = {}, refreshTrigger
                   <Button 
                     variant="outline" 
                     size="sm"
-                    onClick={() => {
-                      // Handle book action
-                      console.log('Book ride:', ride.id);
-                    }}
+                    onClick={() => handleBookRide(ride)}
                   >
                     Book Ride
                   </Button>
@@ -203,6 +220,16 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams = {}, refreshTrigger
           </div>
         </Card>
       ))}
+      
+      {selectedRide && (
+        <PaymentModal
+          isOpen={paymentModalOpen}
+          onClose={() => setPaymentModalOpen(false)}
+          rideId={selectedRide.id}
+          amount={selectedRide.price}
+          onSuccess={handlePaymentSuccess}
+        />
+      )}
     </div>
   );
 };

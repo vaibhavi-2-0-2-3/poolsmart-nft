@@ -1,10 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navbar } from '@/components/layout/Navbar';
 import RidesList from '@/components/rides/RidesList';
 import { RidesFilter } from '@/components/rides/RidesFilter';
 import { useWeb3 } from '@/hooks/useWeb3';
-import { Ride, createRide } from '@/lib/firebase';
+import { Ride, createRide, getUserProfile } from '@/lib/firebase';
 import { PaymentModal } from '@/components/rides/PaymentModal';
 import { Car, CalendarClock, MapPin, CreditCard, Clock, Users, Search } from 'lucide-react';
 import { Button } from '@/components/shared/Button';
@@ -36,6 +36,23 @@ const Rides = () => {
   const [filterDialogOpen, setFilterDialogOpen] = useState(false);
   const [showCreateRideForm, setShowCreateRideForm] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [isWalletConnecting, setIsWalletConnecting] = useState(false);
+
+  useEffect(() => {
+    // Check if wallet is connected but no profile exists
+    const checkWalletAndProfile = async () => {
+      if (address && !userProfile && !showRegistration) {
+        // Check if the user profile exists in the database
+        const profile = await getUserProfile(address);
+        if (!profile) {
+          setPendingAddress(address);
+          setShowRegistration(true);
+        }
+      }
+    };
+
+    checkWalletAndProfile();
+  }, [address, userProfile, showRegistration]);
 
   const handleSearch = (params: SearchParams) => {
     setSearchParams(params);
@@ -43,22 +60,43 @@ const Rides = () => {
 
   const handleConnectWallet = async () => {
     try {
+      setIsWalletConnecting(true);
       const walletAddress = await connect();
       
-      if (walletAddress && !userProfile) {
-        setPendingAddress(walletAddress);
-        setShowRegistration(true);
+      if (walletAddress) {
+        // Check if the user profile exists
+        const profile = await getUserProfile(walletAddress);
+        if (!profile) {
+          setPendingAddress(walletAddress);
+          setShowRegistration(true);
+        }
       }
     } catch (error) {
       console.error("Connection error:", error);
+      toast({
+        title: "Connection error",
+        description: "Failed to connect wallet. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsWalletConnecting(false);
     }
   };
 
   const handleCompleteRegistration = (userData: UserProfileData) => {
-    if (completeRegistration) {
+    if (pendingAddress && completeRegistration) {
       completeRegistration(userData);
+      setShowRegistration(false);
+      setPendingAddress(null);
+      
+      // Refresh trigger to re-render components
+      setRefreshTrigger(prev => prev + 1);
+      
+      toast({
+        title: "Registration completed",
+        description: "Your profile has been created successfully!",
+      });
     }
-    setPendingAddress(null);
   };
 
   const handleCreateRideSuccess = () => {
@@ -155,8 +193,9 @@ const Rides = () => {
                       onClick={handleConnectWallet}
                       iconLeft={<CreditCard className="h-4 w-4" />}
                       className="w-full"
+                      disabled={isWalletConnecting}
                     >
-                      Connect Wallet
+                      {isWalletConnecting ? 'Connecting...' : 'Connect Wallet'}
                     </Button>
                   </div>
                 </Card>
@@ -185,7 +224,16 @@ const Rides = () => {
                       return;
                     }
                     
-                    // Open the create ride modal instead of redirecting
+                    if (!userProfile) {
+                      toast({
+                        title: "Profile required",
+                        description: "Please complete your profile to list a ride.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                    
+                    // Open the create ride modal
                     setShowCreateRideForm(true);
                   }}
                 >
