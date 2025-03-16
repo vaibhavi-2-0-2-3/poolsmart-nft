@@ -38,22 +38,6 @@ const Rides = () => {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [isWalletConnecting, setIsWalletConnecting] = useState(false);
 
-  useEffect(() => {
-    // Check if wallet is connected but no profile exists
-    const checkWalletAndProfile = async () => {
-      if (address && !userProfile && !showRegistration) {
-        // Check if the user profile exists in the database
-        const profile = await getUserProfile(address);
-        if (!profile) {
-          setPendingAddress(address);
-          setShowRegistration(true);
-        }
-      }
-    };
-
-    checkWalletAndProfile();
-  }, [address, userProfile, showRegistration]);
-
   const handleSearch = (params: SearchParams) => {
     setSearchParams(params);
   };
@@ -61,16 +45,7 @@ const Rides = () => {
   const handleConnectWallet = async () => {
     try {
       setIsWalletConnecting(true);
-      const walletAddress = await connect();
-      
-      if (walletAddress) {
-        // Check if the user profile exists
-        const profile = await getUserProfile(walletAddress);
-        if (!profile) {
-          setPendingAddress(walletAddress);
-          setShowRegistration(true);
-        }
-      }
+      await connect(); // Simply connect wallet, no registration check
     } catch (error) {
       console.error("Connection error:", error);
       toast({
@@ -83,15 +58,16 @@ const Rides = () => {
     }
   };
 
+
   const handleCompleteRegistration = (userData: UserProfileData) => {
     if (pendingAddress && completeRegistration) {
       completeRegistration(userData);
       setShowRegistration(false);
       setPendingAddress(null);
-      
+
       // Refresh trigger to re-render components
       setRefreshTrigger(prev => prev + 1);
-      
+
       toast({
         title: "Registration completed",
         description: "Your profile has been created successfully!",
@@ -135,7 +111,7 @@ const Rides = () => {
                     placeholder="Departure location"
                     className="pl-10"
                     value={searchParams.from}
-                    onChange={(e) => setSearchParams({...searchParams, from: e.target.value})}
+                    onChange={(e) => setSearchParams({ ...searchParams, from: e.target.value })}
                   />
                 </div>
               </div>
@@ -151,14 +127,14 @@ const Rides = () => {
                     placeholder="Destination"
                     className="pl-10"
                     value={searchParams.to}
-                    onChange={(e) => setSearchParams({...searchParams, to: e.target.value})}
+                    onChange={(e) => setSearchParams({ ...searchParams, to: e.target.value })}
                   />
                 </div>
               </div>
               <div className="md:col-span-1">
                 <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">&#8203;</label>
-                <Button 
-                  variant="primary" 
+                <Button
+                  variant="primary"
                   className="w-full"
                   onClick={() => handleSearch(searchParams)}
                   iconLeft={<Search className="h-4 w-4" />}
@@ -171,15 +147,15 @@ const Rides = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
-              <RidesFilter 
-                open={filterDialogOpen} 
-                onOpenChange={setFilterDialogOpen} 
+              <RidesFilter
+                open={filterDialogOpen}
+                onOpenChange={setFilterDialogOpen}
                 onApplyFilters={(filterOptions) => {
                   console.log('Filter options:', filterOptions);
                   // Apply filters to rides
                 }}
               />
-              
+
               {!address ? (
                 <Card className="mt-6 p-8 text-center">
                   <Car className="h-12 w-12 text-brand-600 mx-auto mb-4" />
@@ -188,7 +164,7 @@ const Rides = () => {
                     To book a ride or offer your own, please connect your wallet first.
                   </p>
                   <div className="max-w-xs mx-auto">
-                    <Button 
+                    <Button
                       variant="primary"
                       onClick={handleConnectWallet}
                       iconLeft={<CreditCard className="h-4 w-4" />}
@@ -211,37 +187,29 @@ const Rides = () => {
                 <p className="text-muted-foreground mb-6">
                   Share your journey and earn cryptocurrency.
                 </p>
-                <Button 
-                  variant="secondary" 
+                <Button
+                  variant="secondary"
                   className="w-full"
                   onClick={() => {
                     if (!address) {
                       toast({
-                        title: "Wallet not connected",
-                        description: "Please connect your wallet to list a ride.",
+                        title: "Not Authenticated",
+                        description: "Please connect your wallet to offer a ride.",
                         variant: "destructive",
                       });
                       return;
                     }
-                    
-                    if (!userProfile) {
-                      toast({
-                        title: "Profile required",
-                        description: "Please complete your profile to list a ride.",
-                        variant: "destructive",
-                      });
-                      return;
-                    }
-                    
-                    // Open the create ride modal
                     setShowCreateRideForm(true);
                   }}
                 >
                   <CalendarClock className="h-4 w-4 mr-2" />
                   List a Ride
                 </Button>
+
+
+
               </Card>
-              
+
               <Card className="p-6 mt-6">
                 <h3 className="text-xl font-semibold mb-4">Popular Destinations</h3>
                 <ul className="space-y-2">
@@ -263,19 +231,6 @@ const Rides = () => {
           </div>
         </div>
       </main>
-      
-      {/* Registration Modal */}
-      {showRegistration && pendingAddress && (
-        <UserRegistrationModal
-          isOpen={showRegistration}
-          onClose={() => {
-            setShowRegistration(false);
-            setPendingAddress(null);
-          }}
-          onComplete={handleCompleteRegistration}
-          walletAddress={pendingAddress}
-        />
-      )}
 
       {/* Create Ride Modal */}
       <CreateRideModal
