@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -71,8 +70,7 @@ export function UserRegistrationModal({
     }
   };
 
-  const onSubmit = (data: FormValues) => {
-    // Ensure all required fields are included in the UserProfileData
+  const onSubmit = async (data: FormValues) => {
     const userData: UserProfileData = {
       username: data.username,
       fullName: data.fullName,
@@ -83,13 +81,7 @@ export function UserRegistrationModal({
       walletAddress
     };
     
-    onComplete(userData);
-    
-    toast({
-      title: "Profile created!",
-      description: "Your profile has been successfully created.",
-    });
-    
+    await onComplete(userData);
     onClose();
   };
 

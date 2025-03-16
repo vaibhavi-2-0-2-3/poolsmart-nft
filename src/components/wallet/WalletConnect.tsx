@@ -26,6 +26,14 @@ export const WalletConnect = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isDropdownOpen]);
+
+  // Check if registration is needed when address changes
+  useEffect(() => {
+    if (address && !userProfile) {
+      setPendingAddress(address);
+      setShowRegistration(true);
+    }
+  }, [address, userProfile]);
   
   const shortenAddress = (address: string | null) => {
     if (!address) return '';
@@ -53,23 +61,29 @@ export const WalletConnect = () => {
   
   const handleConnect = async () => {
     try {
-      const walletAddress = await connect();
-      
-      if (walletAddress) {
-        // If the wallet is connected but no user profile is found, show registration
-        if (!userProfile) {
-          setPendingAddress(walletAddress);
-          setShowRegistration(true);
-        }
-      }
+      await connect();
+      // Registration modal will be shown by the useEffect if needed
     } catch (error) {
       console.error("Connection error:", error);
     }
   };
   
-  const handleCompleteRegistration = (userData: UserProfileData) => {
-    if (completeRegistration) {
-      completeRegistration(userData);
+  const handleCompleteRegistration = async (userData: UserProfileData) => {
+    try {
+      const success = await completeRegistration(userData);
+      if (success) {
+        toast({
+          title: "Profile created",
+          description: "Your profile has been successfully created",
+        });
+      }
+    } catch (error) {
+      console.error("Registration error:", error);
+      toast({
+        title: "Registration failed",
+        description: "Failed to complete registration. Please try again.",
+        variant: "destructive",
+      });
     }
     setPendingAddress(null);
   };

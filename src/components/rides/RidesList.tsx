@@ -23,7 +23,7 @@ interface RidesListProps {
 const RidesList: React.FC<RidesListProps> = ({ searchParams = {}, refreshTrigger = 0 }) => {
   const [rides, setRides] = useState<Ride[]>([]);
   const [loading, setLoading] = useState(true);
-  const { address } = useWeb3();
+  const { address, connect, userProfile } = useWeb3();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -85,6 +85,14 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams = {}, refreshTrigger
       setRides(allRides);
     } catch (error) {
       console.error('Error refreshing rides:', error);
+    }
+  };
+
+  const handleConnect = async () => {
+    try {
+      await connect();
+    } catch (error) {
+      console.error("Connection error:", error);
     }
   };
 
@@ -169,17 +177,27 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams = {}, refreshTrigger
               <span>{ride.seatsAvailable} seats available</span>
             </div>
             <div className="flex justify-end">
-              {address && address !== ride.driver.address && ride.status === 'active' && (
+              {!address ? (
                 <Button 
                   variant="outline" 
                   size="sm"
-                  onClick={() => {
-                    // Handle book action
-                    console.log('Book ride:', ride.id);
-                  }}
+                  onClick={handleConnect}
                 >
-                  Book Ride
+                  Connect Wallet to Book
                 </Button>
+              ) : (
+                address !== ride.driver.address && ride.status === 'active' && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      // Handle book action
+                      console.log('Book ride:', ride.id);
+                    }}
+                  >
+                    Book Ride
+                  </Button>
+                )
               )}
             </div>
           </div>
