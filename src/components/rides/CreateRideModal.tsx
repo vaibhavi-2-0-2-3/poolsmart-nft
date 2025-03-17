@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/shared/Button';
@@ -45,6 +44,8 @@ export const CreateRideModal: React.FC<CreateRideModalProps> = ({
     setLoading(true);
     
     try {
+      console.log("Creating ride with form data:", formData);
+      
       // Create a temporary driver object if no wallet is connected
       const driver = address && userProfile ? {
         id: userProfile.id,
@@ -78,6 +79,7 @@ export const CreateRideModal: React.FC<CreateRideModalProps> = ({
       
       // Save ride to database
       const rideId = await createRide(ride);
+      console.log("Ride created with ID:", rideId);
       
       if (rideId) {
         toast({
@@ -124,7 +126,6 @@ export const CreateRideModal: React.FC<CreateRideModalProps> = ({
         
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <div className="space-y-4">
-            {/* Driver info fields when no wallet is connected */}
             {!address && (
               <>
                 <div className="grid gap-2">

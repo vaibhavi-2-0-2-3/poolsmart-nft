@@ -33,7 +33,9 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams = {}, refreshTrigger
     const fetchRides = async () => {
       setLoading(true);
       try {
+        console.log('Fetching rides with refreshTrigger:', refreshTrigger);
         const allRides = await getRides();
+        console.log('Fetched rides:', allRides);
         
         // Filter rides based on search params if provided
         let filteredRides = allRides;

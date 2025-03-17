@@ -75,6 +75,7 @@ const Rides = () => {
 
   const handleCreateRideSuccess = () => {
     // Increment to trigger refresh of RidesList
+    console.log("Ride created successfully, incrementing refresh trigger");
     setRefreshTrigger(prev => prev + 1);
     toast({
       title: "Success",
@@ -94,7 +95,6 @@ const Rides = () => {
             </p>
           </div>
 
-          {/* Search Bar */}
           <Card className="mb-6 p-6">
             <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
               <div className="md:col-span-2">
@@ -178,7 +178,6 @@ const Rides = () => {
               )}
             </div>
 
-            {/* Sidebar Content */}
             <div className="lg:col-span-1">
               <Card className="p-6">
                 <h3 className="text-xl font-semibold mb-4">Offer a Ride</h3>
@@ -217,7 +216,6 @@ const Rides = () => {
         </div>
       </main>
 
-      {/* Create Ride Modal */}
       <CreateRideModal
         isOpen={showCreateRideForm}
         onClose={() => setShowCreateRideForm(false)}
