@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { getRides, Ride } from '@/lib/firebase';
 import { Card } from '@/components/shared/Card';
 import { Car, Clock, MapPin, Users, DollarSign, Star } from 'lucide-react';
@@ -29,59 +28,60 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams = {}, refreshTrigger
   const { address, connect, userProfile } = useWeb3();
   const { toast } = useToast();
 
-  useEffect(() => {
-    const fetchRides = async () => {
-      setLoading(true);
-      try {
-        console.log('Fetching rides with refreshTrigger:', refreshTrigger);
-        const allRides = await getRides();
-        console.log('Fetched rides:', allRides);
-        
-        // Filter rides based on search params if provided
-        let filteredRides = allRides;
-        
-        if (searchParams.from) {
-          filteredRides = filteredRides.filter(ride => 
-            ride.departure.location.toLowerCase().includes(searchParams.from?.toLowerCase() || '')
-          );
-        }
-        
-        if (searchParams.to) {
-          filteredRides = filteredRides.filter(ride => 
-            ride.destination.location.toLowerCase().includes(searchParams.to?.toLowerCase() || '')
-          );
-        }
-        
-        if (searchParams.date) {
-          filteredRides = filteredRides.filter(ride => {
-            const rideDate = new Date(ride.departure.time).toLocaleDateString();
-            const searchDate = new Date(searchParams.date || '').toLocaleDateString();
-            return rideDate === searchDate;
-          });
-        }
-        
-        if (searchParams.seats) {
-          const requiredSeats = parseInt(searchParams.seats);
-          filteredRides = filteredRides.filter(ride => 
-            ride.seatsAvailable >= requiredSeats
-          );
-        }
-        
-        setRides(filteredRides);
-      } catch (error) {
-        console.error('Error fetching rides:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to load rides. Please try again.',
-          variant: 'destructive',
-        });
-      } finally {
-        setLoading(false);
+  const fetchRides = useCallback(async () => {
+    setLoading(true);
+    try {
+      console.log('Fetching rides with refreshTrigger:', refreshTrigger);
+      const allRides = await getRides();
+      console.log('Fetched rides:', allRides);
+      
+      // Filter rides based on search params if provided
+      let filteredRides = allRides;
+      
+      if (searchParams.from) {
+        filteredRides = filteredRides.filter(ride => 
+          ride.departure.location.toLowerCase().includes(searchParams.from?.toLowerCase() || '')
+        );
       }
-    };
-    
+      
+      if (searchParams.to) {
+        filteredRides = filteredRides.filter(ride => 
+          ride.destination.location.toLowerCase().includes(searchParams.to?.toLowerCase() || '')
+        );
+      }
+      
+      if (searchParams.date) {
+        filteredRides = filteredRides.filter(ride => {
+          const rideDate = new Date(ride.departure.time).toLocaleDateString();
+          const searchDate = new Date(searchParams.date || '').toLocaleDateString();
+          return rideDate === searchDate;
+        });
+      }
+      
+      if (searchParams.seats) {
+        const requiredSeats = parseInt(searchParams.seats);
+        filteredRides = filteredRides.filter(ride => 
+          ride.seatsAvailable >= requiredSeats
+        );
+      }
+      
+      setRides(filteredRides);
+    } catch (error) {
+      console.error('Error fetching rides:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load rides. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [searchParams, refreshTrigger, toast]);
+  
+  useEffect(() => {
+    console.log("RidesList useEffect triggered with refreshTrigger:", refreshTrigger);
     fetchRides();
-  }, [searchParams, refreshTrigger]);
+  }, [fetchRides, refreshTrigger]);
 
   const handleStatusChange = async () => {
     // Refresh rides when status changes

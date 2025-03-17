@@ -1,3 +1,4 @@
+
 import { initializeApp } from "firebase/app";
 import {
   getFirestore,
@@ -11,6 +12,7 @@ import {
   query,
   where,
   onSnapshot,
+  serverTimestamp,
 } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { UserProfileData } from "@/components/profile/UserRegistrationModal";
@@ -172,16 +174,36 @@ export const getDriverRides = async (
 
 export const createRide = async (ride: Omit<Ride, "id">): Promise<string> => {
   try {
-    const docRef = await addDoc(collection(db, "rides"), ride);
+    console.log("Attempting to create ride in Firebase:", ride);
+    
+    // Add created timestamp
+    const rideWithTimestamp = {
+      ...ride,
+      createdAt: serverTimestamp(),
+    };
+    
+    // Try to create the document in Firestore
+    const docRef = await addDoc(collection(db, "rides"), rideWithTimestamp);
+    console.log("Successfully created ride with ID:", docRef.id);
+    
+    // Verify the ride was created
+    const rideDoc = await getDoc(docRef);
+    if (!rideDoc.exists()) {
+      throw new Error("Ride document was not created successfully");
+    }
+    
     return docRef.id;
   } catch (error) {
     console.error("Error creating ride in Firebase:", error);
+    
+    // Fallback to localStorage if Firebase fails
     const localRides = localStorage.getItem("rides") || "[]";
     const rides = JSON.parse(localRides);
     const id = `ride-${Date.now()}`;
     const newRide = { id, ...ride };
     rides.push(newRide);
     localStorage.setItem("rides", JSON.stringify(rides));
+    console.log("Fallback: Created ride in localStorage with ID:", id);
     return id;
   }
 };

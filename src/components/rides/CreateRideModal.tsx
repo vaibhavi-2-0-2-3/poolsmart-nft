@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/shared/Button';
@@ -46,7 +47,7 @@ export const CreateRideModal: React.FC<CreateRideModalProps> = ({
     try {
       console.log("Creating ride with form data:", formData);
       
-      // Create a temporary driver object if no wallet is connected
+      // Create a driver object
       const driver = address && userProfile ? {
         id: userProfile.id,
         name: userProfile.fullName,
@@ -58,7 +59,7 @@ export const CreateRideModal: React.FC<CreateRideModalProps> = ({
         name: formData.driverName || "Anonymous Driver",
         rating: 0,
         avatar: "",
-        address: address || "",
+        address: address || "anonymous-" + Date.now(),
       };
       
       // Create ride object
@@ -76,6 +77,8 @@ export const CreateRideModal: React.FC<CreateRideModalProps> = ({
         status: "active",
         passengers: [],
       };
+      
+      console.log("Submitting ride to createRide function:", ride);
       
       // Save ride to database
       const rideId = await createRide(ride);
@@ -103,7 +106,7 @@ export const CreateRideModal: React.FC<CreateRideModalProps> = ({
         onSuccess();
         onClose();
       } else {
-        throw new Error("Failed to create ride");
+        throw new Error("Failed to create ride - no ride ID returned");
       }
     } catch (error) {
       console.error("Error creating ride:", error);
