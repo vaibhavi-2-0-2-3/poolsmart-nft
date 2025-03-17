@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Navbar } from '@/components/layout/Navbar';
 import RidesList from '@/components/rides/RidesList';
@@ -57,7 +56,6 @@ const Rides = () => {
       setIsWalletConnecting(false);
     }
   };
-
 
   const handleCompleteRegistration = (userData: UserProfileData) => {
     if (pendingAddress && completeRegistration) {
@@ -190,24 +188,11 @@ const Rides = () => {
                 <Button
                   variant="secondary"
                   className="w-full"
-                  onClick={() => {
-                    if (!address) {
-                      toast({
-                        title: "Not Authenticated",
-                        description: "Please connect your wallet to offer a ride.",
-                        variant: "destructive",
-                      });
-                      return;
-                    }
-                    setShowCreateRideForm(true);
-                  }}
+                  onClick={() => setShowCreateRideForm(true)}
                 >
                   <CalendarClock className="h-4 w-4 mr-2" />
                   List a Ride
                 </Button>
-
-
-
               </Card>
 
               <Card className="p-6 mt-6">

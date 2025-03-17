@@ -30,6 +30,8 @@ export const CreateRideModal: React.FC<CreateRideModalProps> = ({
     departureTime: '',
     seatsAvailable: '1',
     price: '0.01',
+    driverName: '',
+    driverEmail: '',
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -40,27 +42,27 @@ export const CreateRideModal: React.FC<CreateRideModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!address || !userProfile) {
-      toast({
-        title: "Not authenticated",
-        description: "Please connect your wallet to offer a ride",
-        variant: "destructive",
-      });
-      return;
-    }
-    
     setLoading(true);
     
     try {
+      // Create a temporary driver object if no wallet is connected
+      const driver = address && userProfile ? {
+        id: userProfile.id,
+        name: userProfile.fullName,
+        rating: userProfile.rating || 0,
+        avatar: userProfile.avatar,
+        address: address,
+      } : {
+        id: "temp-" + Date.now().toString(),
+        name: formData.driverName || "Anonymous Driver",
+        rating: 0,
+        avatar: "",
+        address: address || "",
+      };
+      
       // Create ride object
       const ride: Omit<Ride, "id"> = {
-        driver: {
-          id: userProfile.id,
-          name: userProfile.fullName,
-          rating: userProfile.rating || 0,
-          avatar: userProfile.avatar,
-          address: address,
-        },
+        driver,
         departure: {
           location: formData.fromLocation,
           time: `${formData.departureDate}T${formData.departureTime}`,
@@ -91,6 +93,8 @@ export const CreateRideModal: React.FC<CreateRideModalProps> = ({
           departureTime: '',
           seatsAvailable: '1',
           price: '0.01',
+          driverName: '',
+          driverEmail: '',
         });
         
         // Close modal and refresh rides list
@@ -120,6 +124,36 @@ export const CreateRideModal: React.FC<CreateRideModalProps> = ({
         
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <div className="space-y-4">
+            {/* Driver info fields when no wallet is connected */}
+            {!address && (
+              <>
+                <div className="grid gap-2">
+                  <Label htmlFor="driverName">Your Name</Label>
+                  <Input
+                    id="driverName"
+                    name="driverName"
+                    placeholder="Enter your name"
+                    value={formData.driverName}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+                
+                <div className="grid gap-2">
+                  <Label htmlFor="driverEmail">Your Email</Label>
+                  <Input
+                    id="driverEmail"
+                    name="driverEmail"
+                    type="email"
+                    placeholder="Enter your email"
+                    value={formData.driverEmail}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+              </>
+            )}
+            
             <div className="grid gap-2">
               <Label htmlFor="fromLocation">From</Label>
               <div className="relative">
