@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Navbar } from '@/components/layout/Navbar';
@@ -6,7 +7,7 @@ import { Button } from '@/components/shared/Button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar, Clock, MapPin, Users, Star, Wallet, Car } from 'lucide-react';
 import { useWeb3 } from '@/hooks/useWeb3';
-import { Ride, getUserRides, getRides } from '@/lib/firebase';
+import { Ride, getUserRides, getRides } from '@/lib/db';
 
 const Dashboard = () => {
   const { address } = useWeb3();
@@ -23,23 +24,19 @@ const Dashboard = () => {
     }
   }, [address]);
   
-  const loadUserData = async (userAddress: string) => {
+  const loadUserData = (userAddress: string) => {
     setLoading(true);
     
-    try {
-      // Get bookings (rides user has booked)
-      const userBookings = await getUserRides(userAddress);
-      setMyRides(userBookings);
-      
-      // Get offered rides (rides user has created)
-      const allRides = await getRides();
-      const userOfferedRides = allRides.filter(ride => ride.driver.address === userAddress);
-      setOfferedRides(userOfferedRides);
-    } catch (error) {
-      console.error("Error loading user data:", error);
-    } finally {
-      setLoading(false);
-    }
+    // Get bookings (rides user has booked)
+    const userBookings = getUserRides(userAddress);
+    setMyRides(userBookings);
+    
+    // Get offered rides (rides user has created)
+    const allRides = getRides();
+    const userOfferedRides = allRides.filter(ride => ride.driver.address === userAddress);
+    setOfferedRides(userOfferedRides);
+    
+    setLoading(false);
   };
   
   const formatDate = (dateString: string) => {
@@ -171,7 +168,8 @@ const Dashboard = () => {
                               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-brand-600">
                                 <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
                                 <circle cx="9" cy="7" r="4"></circle>
-                                <path d="M22 21v-2a4 4 0 0 1 0 7.75"></path>
+                                <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                               </svg>
                             </div>
                             <div>
