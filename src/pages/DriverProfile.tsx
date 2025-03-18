@@ -5,7 +5,7 @@ import { Navbar } from '@/components/layout/Navbar';
 import { Card } from '@/components/shared/Card';
 import { Button } from '@/components/shared/Button';
 import { ChevronLeft } from 'lucide-react';
-import { getDriverById, Driver, getRides, Ride, getUserProfile } from '@/lib/firebase';
+import { getDriverById, Driver, getRides, Ride as FirebaseRide, getUserProfile } from '@/lib/firebase';
 import { ContactDriverModal } from '@/components/driver/ContactDriverModal';
 import { ProfileEditModal } from '@/components/profile/ProfileEditModal';
 import { DriverHeader } from '@/components/driver/DriverHeader';
@@ -15,11 +15,14 @@ import { DriverReviews } from '@/components/driver/DriverReviews';
 import { useWeb3 } from '@/hooks/useWeb3';
 import { useToast } from '@/hooks/use-toast';
 
+// We're removing the import from db.ts since we're using the Firebase type
+// import { Ride as DbRide } from '@/lib/db';
+
 const DriverProfile = () => {
   const { driverId } = useParams<{ driverId: string }>();
   const [driver, setDriver] = useState<Driver | null>(null);
-  const [driverRides, setDriverRides] = useState<Ride[]>([]);
-  const [userRides, setUserRides] = useState<Ride[]>([]);
+  const [driverRides, setDriverRides] = useState<FirebaseRide[]>([]);
+  const [userRides, setUserRides] = useState<FirebaseRide[]>([]);
   const [loading, setLoading] = useState(true);
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [profileEditModalOpen, setProfileEditModalOpen] = useState(false);

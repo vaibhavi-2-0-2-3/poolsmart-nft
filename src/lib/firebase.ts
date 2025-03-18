@@ -1,3 +1,4 @@
+
 import { initializeApp } from "firebase/app";
 import {
   getFirestore,
@@ -58,6 +59,7 @@ export interface Ride {
   paymentStatus?: "pending" | "processing" | "completed" | "failed";
   startedAt?: string;
   endedAt?: string;
+  verified?: boolean; // Added verified property to match db.ts
 }
 
 export interface UserProfile {
@@ -138,6 +140,7 @@ export const getRides = async (): Promise<Ride[]> => {
       const rideData = {
         ...data,
         id: doc.id,
+        verified: true // Set a default value to match the db.ts interface
       };
 
       // Convert any Timestamp objects to strings
@@ -179,7 +182,7 @@ export const getUserRides = async (userAddress: string): Promise<Ride[]> => {
     const rides: Ride[] = [];
     querySnapshot.forEach((doc) => {
       const rideData = doc.data() as Omit<Ride, "id">;
-      rides.push({ id: doc.id, ...rideData });
+      rides.push({ id: doc.id, ...rideData, verified: true });
     });
     return rides;
   } catch (error) {
@@ -207,7 +210,7 @@ export const getDriverRides = async (
     const rides: Ride[] = [];
     querySnapshot.forEach((doc) => {
       const rideData = doc.data() as Omit<Ride, "id">;
-      rides.push({ id: doc.id, ...rideData });
+      rides.push({ id: doc.id, ...rideData, verified: true });
     });
     return rides;
   } catch (error) {
@@ -269,6 +272,7 @@ export const createRide = async (ride: Omit<Ride, "id">): Promise<string> => {
       seatsAvailable: Number(ride.seatsAvailable || 1),
       status: ride.status || "active",
       passengers: ride.passengers || [],
+      verified: true, // Added to match db.ts interface
       createdAt: serverTimestamp(),
     };
 
@@ -304,7 +308,11 @@ export const createRide = async (ride: Omit<Ride, "id">): Promise<string> => {
     const localRides = localStorage.getItem("rides") || "[]";
     const rides = JSON.parse(localRides);
     const id = `ride-${Date.now()}`;
-    const newRide = { id, ...ride };
+    const newRide = { 
+      id, 
+      ...ride,
+      verified: true 
+    };
     rides.push(newRide);
     localStorage.setItem("rides", JSON.stringify(rides));
     console.log("Fallback: Created ride in localStorage with ID:", id);
