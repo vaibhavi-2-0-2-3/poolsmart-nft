@@ -31,8 +31,8 @@ export const RideActions: React.FC<RideActionsProps> = ({
       const blockchainSuccess = await startRideWeb3(ride.id);
       
       if (blockchainSuccess) {
-        // Update local database
-        const dbSuccess = startRideDb(ride.id);
+        // Update Firestore database
+        const dbSuccess = await startRideDb(ride.id);
         
         if (dbSuccess) {
           toast({
@@ -67,8 +67,8 @@ export const RideActions: React.FC<RideActionsProps> = ({
       const blockchainSuccess = await endRideWeb3(ride.id);
       
       if (blockchainSuccess) {
-        // Update local database
-        const dbSuccess = endRideDb(ride.id);
+        // Update Firestore database
+        const dbSuccess = await endRideDb(ride.id);
         
         if (dbSuccess) {
           toast({
