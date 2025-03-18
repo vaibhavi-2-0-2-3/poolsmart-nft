@@ -38,22 +38,25 @@ const DriverProfile = () => {
     }
   }, [driverId]);
   
-  const loadDriverData = (id: string) => {
+  const loadDriverData = async (id: string) => {
     setLoading(true);
     
-    // Get driver details
-    const driverData = getDriverById(id);
-    
-    if (driverData) {
-      setDriver(driverData);
-      
-      // Get all rides by this driver
-      const allRides = getRides();
-      const driverRides = allRides.filter(ride => ride.driver.id === id);
-      setDriverRides(driverRides);
+    try {
+      // Get driver details
+      const driverData = await getDriverById(id);
+      if (driverData) {
+        setDriver(driverData);
+        
+        // Get all rides by this driver
+        const allRides = await getRides();
+        const driverRides = allRides.filter(ride => ride.driver.id === id);
+        setDriverRides(driverRides);
+      }
+    } catch (error) {
+      console.error("Error loading driver data:", error);
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   const handleProfileSave = (data: { username: string; avatar: string }) => {

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/shared/Card';
 import { Button } from '@/components/shared/Button';
@@ -8,7 +9,17 @@ import { Ride, getRides, bookRide } from '@/lib/firebase';
 import { useWeb3 } from '@/hooks/useWeb3';
 import { useToast } from '@/hooks/use-toast';
 
-const RidesList = () => {
+interface RidesListProps {
+  searchParams?: {
+    from: string;
+    to: string;
+    date: string;
+    time: string;
+    seats: string;
+  };
+}
+
+const RidesList: React.FC<RidesListProps> = ({ searchParams }) => {
   const [rides, setRides] = useState<Ride[]>([]);
   const [loading, setLoading] = useState(true);
   const { address } = useWeb3();
