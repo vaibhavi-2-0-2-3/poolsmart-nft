@@ -1,6 +1,6 @@
 
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, query, where, addDoc, deleteDoc } from 'firebase/firestore';
+import { getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, query, where, addDoc, deleteDoc, Timestamp } from 'firebase/firestore';
 import { Driver, Ride } from './db';
 
 // Your web app's Firebase configuration
@@ -109,7 +109,24 @@ export const getRides = async (): Promise<Ride[]> => {
   try {
     const ridesRef = collection(db, 'rides');
     const ridesSnapshot = await getDocs(ridesRef);
-    return ridesSnapshot.docs.map(doc => doc.data() as Ride);
+    return ridesSnapshot.docs.map(doc => {
+      const data = doc.data();
+      // Process Timestamp objects correctly
+      // Check if departure time is a Firestore Timestamp and convert it
+      if (data.departure && data.departure.time && typeof data.departure.time === 'object' && 'toDate' in data.departure.time) {
+        data.departure.time = data.departure.time.toDate().toISOString();
+      }
+      
+      // Check if destination time is a Firestore Timestamp and convert it
+      if (data.destination && data.destination.time && typeof data.destination.time === 'object' && 'toDate' in data.destination.time) {
+        data.destination.time = data.destination.time.toDate().toISOString();
+      }
+      
+      return { 
+        id: doc.id,
+        ...data 
+      } as Ride;
+    });
   } catch (error) {
     console.error('Error getting rides from Firebase:', error);
     // Fallback to localStorage if Firebase fails
