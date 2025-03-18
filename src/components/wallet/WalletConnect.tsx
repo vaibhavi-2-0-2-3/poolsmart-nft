@@ -5,10 +5,13 @@ import { Button } from '../shared/Button';
 import { Wallet2, ChevronDown, Copy, LogOut } from 'lucide-react';
 import { Card } from '../shared/Card';
 import { useToast } from '@/hooks/use-toast';
+import { UserRegistrationModal, UserProfileData } from '../profile/UserRegistrationModal';
 
 export const WalletConnect = () => {
-  const { address, connect, disconnect, isConnecting, balance } = useWeb3();
+  const { address, connect, disconnect, isConnecting, balance, userProfile, completeRegistration } = useWeb3();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [showRegistration, setShowRegistration] = useState(false);
+  const [pendingAddress, setPendingAddress] = useState<string | null>(null);
   const { toast } = useToast();
   
   // Close dropdown when clicking outside
@@ -48,17 +51,55 @@ export const WalletConnect = () => {
     });
   };
   
+  const handleConnect = async () => {
+    try {
+      const walletAddress = await connect();
+      
+      if (walletAddress) {
+        // If the wallet is connected but no user profile is found, show registration
+        if (!userProfile) {
+          setPendingAddress(walletAddress);
+          setShowRegistration(true);
+        }
+      }
+    } catch (error) {
+      console.error("Connection error:", error);
+    }
+  };
+  
+  const handleCompleteRegistration = (userData: UserProfileData) => {
+    if (completeRegistration) {
+      completeRegistration(userData);
+    }
+    setPendingAddress(null);
+  };
+  
   if (!address) {
     return (
-      <Button 
-        variant="primary"
-        onClick={connect}
-        isLoading={isConnecting}
-        iconLeft={!isConnecting && <Wallet2 className="h-4 w-4" />}
-        aria-label="Connect wallet"
-      >
-        {isConnecting ? 'Connecting...' : 'Connect Wallet'}
-      </Button>
+      <>
+        <Button 
+          variant="primary"
+          onClick={handleConnect}
+          isLoading={isConnecting}
+          iconLeft={!isConnecting && <Wallet2 className="h-4 w-4" />}
+          aria-label="Connect wallet"
+        >
+          {isConnecting ? 'Connecting...' : 'Connect Wallet'}
+        </Button>
+        
+        {showRegistration && pendingAddress && (
+          <UserRegistrationModal
+            isOpen={showRegistration}
+            onClose={() => {
+              setShowRegistration(false);
+              setPendingAddress(null);
+              disconnect(); // Disconnect if they cancel registration
+            }}
+            onComplete={handleCompleteRegistration}
+            walletAddress={pendingAddress}
+          />
+        )}
+      </>
     );
   }
   
@@ -73,7 +114,7 @@ export const WalletConnect = () => {
       >
         <span className="flex items-center">
           <span className="h-2 w-2 rounded-full bg-green-500 mr-2"></span>
-          <span>{shortenAddress(address)}</span>
+          <span>{userProfile?.username || shortenAddress(address)}</span>
         </span>
         <ChevronDown className="h-4 w-4" />
       </Button>
@@ -99,6 +140,18 @@ export const WalletConnect = () => {
               {address}
             </div>
           </div>
+          
+          {userProfile && (
+            <div className="p-4 border-b border-border">
+              <div className="text-sm font-medium mb-1">Profile</div>
+              <div className="text-xs text-muted-foreground mb-1">
+                {userProfile.fullName}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {userProfile.email}
+              </div>
+            </div>
+          )}
           
           <div className="p-4 border-b border-border">
             <div className="text-sm font-medium mb-1">Balance</div>
@@ -135,6 +188,20 @@ export const WalletConnect = () => {
             </Button>
           </div>
         </Card>
+      )}
+      
+      {/* Show registration if wallet connected but no profile exists */}
+      {showRegistration && pendingAddress && (
+        <UserRegistrationModal
+          isOpen={showRegistration}
+          onClose={() => {
+            setShowRegistration(false);
+            setPendingAddress(null);
+            disconnect(); // Disconnect if they cancel registration
+          }}
+          onComplete={handleCompleteRegistration}
+          walletAddress={pendingAddress}
+        />
       )}
     </div>
   );

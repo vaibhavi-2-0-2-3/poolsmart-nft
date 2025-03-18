@@ -1,9 +1,10 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/shared/Button';
 import { Play, Square, CreditCard } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { startRide as startRideWeb3, endRide as endRideWeb3 } from '@/lib/web3';
-import { startRide as startRideDb, endRide as endRideDb, Ride } from '@/lib/firebase';
+import { startRide, endRide, Ride } from '@/lib/firebase';
 import { PaymentModal } from './PaymentModal';
 
 interface RideActionsProps {
@@ -31,7 +32,7 @@ export const RideActions: React.FC<RideActionsProps> = ({
       
       if (blockchainSuccess) {
         // Update database
-        const dbSuccess = await startRideDb(ride.id);
+        const dbSuccess = await startRide(ride.id);
         
         if (dbSuccess) {
           toast({
@@ -67,7 +68,7 @@ export const RideActions: React.FC<RideActionsProps> = ({
       
       if (blockchainSuccess) {
         // Update database
-        const dbSuccess = await endRideDb(ride.id);
+        const dbSuccess = await endRide(ride.id);
         
         if (dbSuccess) {
           toast({
