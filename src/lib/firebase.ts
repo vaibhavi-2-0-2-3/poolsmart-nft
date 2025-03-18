@@ -1,4 +1,3 @@
-
 import { initializeApp } from "firebase/app";
 import {
   getFirestore,
@@ -21,13 +20,13 @@ import { UserProfileData } from "@/components/profile/UserRegistrationModal";
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyB19zdIU6kMMQxNvJdOgkWcwqE9_LbYB-4",
-  authDomain: "carpool-8739b.firebaseapp.com",
-  projectId: "carpool-8739b",
-  storageBucket: "carpool-8739b.firebasestorage.app",
-  messagingSenderId: "93767537081",
-  appId: "1:93767537081:web:b0e18b80eb3b0db4a9e668",
-  measurementId: "G-B9HW3RJ3TH",
+  apiKey: "AIzaSyDs6DkE5CSaZc2JzLfQ-rIqbQmSklOWZsE",
+  authDomain: "smart-pool-76570.firebaseapp.com",
+  projectId: "smart-pool-76570",
+  storageBucket: "smart-pool-76570.firebasestorage.app",
+  messagingSenderId: "1080744358458",
+  appId: "1:1080744358458:web:733e71831b3cbe519a7b03",
+  measurementId: "G-TJXQ2E9EEG",
 };
 
 // Initialize Firebase
@@ -108,32 +107,39 @@ export const getRides = async (): Promise<Ride[]> => {
     console.log("Fetching rides from Firestore collection");
     const ridesCollection = collection(db, "rides");
     const querySnapshot = await getDocs(ridesCollection);
-    
+
     console.log(`Found ${querySnapshot.size} rides in Firestore`);
-    
+
     const rides: Ride[] = [];
     querySnapshot.forEach((doc) => {
       const data = doc.data();
       console.log(`Processing ride document ${doc.id}:`, data);
-      
+
       // Convert Firestore timestamps to strings if present
       const rideData = {
         ...data,
         id: doc.id,
       };
-      
+
       // Convert any Timestamp objects to strings
       if (rideData.departure && rideData.departure.time instanceof Timestamp) {
-        rideData.departure.time = rideData.departure.time.toDate().toISOString();
+        rideData.departure.time = rideData.departure.time
+          .toDate()
+          .toISOString();
       }
-      
-      if (rideData.destination && rideData.destination.time instanceof Timestamp) {
-        rideData.destination.time = rideData.destination.time.toDate().toISOString();
+
+      if (
+        rideData.destination &&
+        rideData.destination.time instanceof Timestamp
+      ) {
+        rideData.destination.time = rideData.destination.time
+          .toDate()
+          .toISOString();
       }
-      
+
       rides.push(rideData as Ride);
     });
-    
+
     console.log("Processed rides:", JSON.stringify(rides));
     return rides;
   } catch (error) {
@@ -202,19 +208,27 @@ export const createRide = async (ride: Omit<Ride, "id">): Promise<string> => {
   try {
     console.log("==== CREATING RIDE IN FIREBASE ====");
     console.log("Input ride data:", JSON.stringify(ride));
-    
+
     // Validate required fields
-    if (!ride.driver || !ride.departure || !ride.destination || ride.price === undefined) {
+    if (
+      !ride.driver ||
+      !ride.departure ||
+      !ride.destination ||
+      ride.price === undefined
+    ) {
       console.error("Missing required ride fields:", ride);
       throw new Error("Missing required ride fields in createRide");
     }
 
     // Format the time string properly if needed
     let departureTime = ride.departure.time;
-    if (typeof departureTime === 'string' && !isNaN(Date.parse(departureTime))) {
+    if (
+      typeof departureTime === "string" &&
+      !isNaN(Date.parse(departureTime))
+    ) {
       departureTime = new Date(departureTime).toISOString();
     }
-    
+
     // Create a properly formatted ride object
     const rideToSave = {
       driver: {
@@ -238,32 +252,35 @@ export const createRide = async (ride: Omit<Ride, "id">): Promise<string> => {
       passengers: ride.passengers || [],
       createdAt: serverTimestamp(),
     };
-    
-    console.log("Formatted ride object for Firestore:", JSON.stringify(rideToSave));
-    
+
+    console.log(
+      "Formatted ride object for Firestore:",
+      JSON.stringify(rideToSave)
+    );
+
     // Add the document to Firestore
     const ridesCollection = collection(db, "rides");
     const docRef = await addDoc(ridesCollection, rideToSave);
-    
+
     console.log("Successfully created ride with ID:", docRef.id);
-    
+
     // Verify the ride was created by fetching it back
     const rideDoc = await getDoc(docRef);
     if (!rideDoc.exists()) {
       throw new Error("Ride document was not created successfully");
     }
-    
+
     // Also save to localStorage as backup
     const localRides = localStorage.getItem("rides") || "[]";
     const rides = JSON.parse(localRides);
     const newRide = { id: docRef.id, ...rideToSave };
     rides.push(newRide);
     localStorage.setItem("rides", JSON.stringify(rides));
-    
+
     return docRef.id;
   } catch (error) {
     console.error("Error creating ride in Firebase:", error);
-    
+
     // Fallback to localStorage if Firebase fails
     const localRides = localStorage.getItem("rides") || "[]";
     const rides = JSON.parse(localRides);

@@ -76,15 +76,15 @@ const Rides = () => {
 
   const handleCreateRideSuccess = () => {
     console.log("Rides page: Ride created successfully!");
-    
+
     // Force a refresh of the rides list by updating refreshTrigger
     const newTrigger = refreshTrigger + 1;
     console.log(`Rides page: Updating refresh trigger from ${refreshTrigger} to ${newTrigger}`);
     setRefreshTrigger(newTrigger);
-    
+
     // Close the create ride form
     setShowCreateRideForm(false);
-    
+
     toast({
       title: "Success",
       description: "Your ride has been listed successfully!",
@@ -187,9 +187,9 @@ const Rides = () => {
                   </div>
                 </Card>
               ) : (
-                <RidesList 
-                  searchParams={searchParams} 
-                  refreshTrigger={refreshTrigger} 
+                <RidesList
+                  searchParams={searchParams}
+                  refreshTrigger={refreshTrigger}
                 />
               )}
             </div>
