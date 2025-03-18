@@ -1,7 +1,6 @@
-
 import React, { useState } from 'react';
 import { Navbar } from '@/components/layout/Navbar';
-import { RidesList } from '@/components/rides/RidesList';
+import RidesList from '@/components/rides/RidesList';
 import { useWeb3 } from '@/hooks/useWeb3';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/shared/Button';
@@ -22,7 +21,7 @@ import * as z from 'zod';
 import { MapPin, Calendar, Clock, Users, Wallet, Car } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
-import { addRide } from '@/lib/db';
+import { createRide } from '@/lib/firebase';
 
 const offerRideSchema = z.object({
   from: z.string().min(3, { message: 'Departure location is required' }),
@@ -68,7 +67,6 @@ const Rides = () => {
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate that we have at least from and to locations
     if (!searchParams.from || !searchParams.to) {
       toast({
         title: "Missing information",
@@ -83,10 +81,8 @@ const Rides = () => {
       description: "Finding available rides matching your criteria...",
     });
 
-    // Trigger a search by updating the searchSubmitted state
     setSearchSubmitted(true);
     
-    // Reset after a delay to allow for multiple searches
     setTimeout(() => {
       setSearchSubmitted(false);
     }, 100);
@@ -103,27 +99,14 @@ const Rides = () => {
     }
     
     try {
-      // Create driver ID that matches exactly what's expected by DriverProfile
       const driverId = address.substring(0, 6);
       
-      // Create the ride in our database
       const newRide = {
-        id: Date.now().toString(),
         driver: {
           id: driverId,
           name: `Driver ${address.substring(0, 4)}`,
           address: address,
-          rating: 5.0, // Default rating for new drivers
-          reviewCount: 0,
-          bio: "New driver on the platform",
-          completedRides: 0,
-          joinedDate: new Date().toISOString().split('T')[0],
-          car: {
-            model: "Unknown",
-            year: "2023",
-            color: "Unknown"
-          },
-          verified: false
+          rating: 5.0,
         },
         departure: {
           location: values.from,
@@ -134,12 +117,11 @@ const Rides = () => {
         },
         price: parseFloat(values.price),
         seatsAvailable: parseInt(values.seats),
-        verified: false, // New drivers are not verified by default
         status: 'active' as const,
         passengers: []
       };
       
-      addRide(newRide);
+      await createRide(newRide);
       
       toast({
         title: "Ride offered",
@@ -149,7 +131,6 @@ const Rides = () => {
       setIsOfferDialogOpen(false);
       form.reset();
       
-      // Navigate to dashboard after successful listing
       setTimeout(() => {
         navigate('/dashboard');
       }, 1500);
@@ -157,7 +138,7 @@ const Rides = () => {
       console.error("Error offering ride:", error);
       toast({
         title: "Transaction error",
-        description: "There was an error with the blockchain transaction",
+        description: "There was an error with the database transaction",
         variant: "destructive",
       });
     }
