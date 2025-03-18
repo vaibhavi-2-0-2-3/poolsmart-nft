@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/shared/Card';
 import { Button } from '@/components/shared/Button';
@@ -8,7 +9,17 @@ import { Ride, getRides, bookRide } from '@/lib/firebase';
 import { useWeb3 } from '@/hooks/useWeb3';
 import { useToast } from '@/hooks/use-toast';
 
-const RidesList = () => {
+interface RidesListProps {
+  searchParams?: {
+    from: string;
+    to: string;
+    date: string;
+    time: string;
+    seats: string;
+  };
+}
+
+const RidesList: React.FC<RidesListProps> = ({ searchParams }) => {
   const [rides, setRides] = useState<Ride[]>([]);
   const [loading, setLoading] = useState(true);
   const { address } = useWeb3();
@@ -16,13 +27,47 @@ const RidesList = () => {
   
   useEffect(() => {
     loadRides();
-  }, []);
+  }, [searchParams]); // Re-fetch rides when searchParams change
   
   const loadRides = async () => {
     setLoading(true);
     try {
       const ridesData = await getRides();
-      setRides(ridesData);
+      
+      // Filter rides if search parameters are provided
+      let filteredRides = ridesData;
+      if (searchParams) {
+        filteredRides = ridesData.filter(ride => {
+          const matchesFrom = !searchParams.from || 
+            ride.departure.location.toLowerCase().includes(searchParams.from.toLowerCase());
+          const matchesTo = !searchParams.to || 
+            ride.destination.location.toLowerCase().includes(searchParams.to.toLowerCase());
+          
+          // Date matching
+          let matchesDate = true;
+          if (searchParams.date) {
+            const rideDate = new Date(ride.departure.time).toISOString().split('T')[0];
+            matchesDate = rideDate === searchParams.date;
+          }
+          
+          // Time matching - approximate match within 2 hours
+          let matchesTime = true;
+          if (searchParams.time) {
+            const rideTime = new Date(ride.departure.time);
+            const searchTime = new Date(`2000-01-01T${searchParams.time}`);
+            const timeDiff = Math.abs(rideTime.getHours() - searchTime.getHours());
+            matchesTime = timeDiff <= 2;
+          }
+          
+          // Seats matching
+          const matchesSeats = !searchParams.seats || 
+            ride.seatsAvailable >= parseInt(searchParams.seats);
+            
+          return matchesFrom && matchesTo && matchesDate && matchesTime && matchesSeats;
+        });
+      }
+      
+      setRides(filteredRides);
     } catch (error) {
       console.error("Error loading rides:", error);
     } finally {
