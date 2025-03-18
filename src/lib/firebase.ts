@@ -1,563 +1,356 @@
 
-import { initializeApp } from "firebase/app";
-import {
-  getFirestore,
-  collection,
-  getDocs,
-  getDoc,
-  setDoc,
-  doc,
-  addDoc,
-  updateDoc,
-  query,
-  where,
-  onSnapshot,
-  serverTimestamp,
-  Timestamp,
-} from "firebase/firestore";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { UserProfileData } from "@/components/profile/UserRegistrationModal";
+import { initializeApp } from 'firebase/app';
+import { getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, query, where, addDoc, deleteDoc } from 'firebase/firestore';
+import { Driver, Ride } from './db';
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyB19zdIU6kMMQxNvJdOgkWcwqE9_LbYB-4",
-  authDomain: "carpool-8739b.firebaseapp.com",
-  projectId: "carpool-8739b",
-  storageBucket: "carpool-8739b.firebasestorage.app",
-  messagingSenderId: "93767537081",
-  appId: "1:93767537081:web:b0e18b80eb3b0db4a9e668",
-  measurementId: "G-B9HW3RJ3TH",
+  apiKey: "AIzaSyA1fYHiR6NShjXw-4Sk8FOEqEeXwraWwQk",
+  authDomain: "rideshare-dapp.firebaseapp.com",
+  projectId: "rideshare-dapp",
+  storageBucket: "rideshare-dapp.appspot.com",
+  messagingSenderId: "385776294568",
+  appId: "1:385776294568:web:8f55d0b5e5b2d5b1f0b5e5",
+  measurementId: "G-5X5X5X5X5X"
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const storage = getStorage(app);
 
-export interface Ride {
-  id: string;
-  driver: {
-    id: string;
-    name: string;
-    rating: number;
-    avatar?: string;
-    address: string;
-  };
-  departure: {
-    location: string;
-    time: string;
-  };
-  destination: {
-    location: string;
-    time?: string;
-  };
-  price: number;
-  seatsAvailable: number;
-  passengers?: string[];
-  status: "active" | "completed" | "in_progress" | "cancelled";
-  paymentStatus?: "pending" | "processing" | "completed" | "failed";
-  startedAt?: string;
-  endedAt?: string;
-}
-
-export interface UserProfile {
-  id: string;
-  username: string;
-  fullName: string;
-  bio?: string;
-  avatar?: string;
-  email: string;
-  phone?: string;
-  walletAddress: string;
-  createdAt: number;
-  updatedAt: number;
-  isDriver?: boolean;
-  carDetails?: {
-    make: string;
-    model: string;
-    year: string;
-    color: string;
-    licensePlate: string;
-  };
-  rating?: number;
-  totalRides?: number;
-}
-
-export const migrateLocalStorageToFirebase = async () => {
-  try {
-    const localRides = localStorage.getItem("rides");
-    if (localRides) {
-      const rides = JSON.parse(localRides);
-      for (const ride of rides) {
-        await addDoc(collection(db, "rides"), ride);
-      }
-      localStorage.removeItem("rides");
-      console.log("Successfully migrated rides from localStorage to Firebase");
-      return true;
+// Initialize the database with default data if empty
+export const initDB = async () => {
+  const driversRef = collection(db, 'drivers');
+  const driversSnapshot = await getDocs(driversRef);
+  
+  if (driversSnapshot.empty) {
+    // Get initial drivers from localStorage as a fallback
+    const localDrivers = JSON.parse(localStorage.getItem('drivers') || '[]');
+    
+    // Add each driver to Firebase
+    for (const driver of localDrivers) {
+      await setDoc(doc(driversRef, driver.id), driver);
     }
-    return false;
-  } catch (error) {
-    console.error("Error migrating data from localStorage:", error);
-    return false;
+  }
+  
+  const ridesRef = collection(db, 'rides');
+  const ridesSnapshot = await getDocs(ridesRef);
+  
+  if (ridesSnapshot.empty) {
+    // Get initial rides from localStorage as a fallback
+    const localRides = JSON.parse(localStorage.getItem('rides') || '[]');
+    
+    // Add each ride to Firebase
+    for (const ride of localRides) {
+      await setDoc(doc(ridesRef, ride.id), ride);
+    }
+  }
+  
+  if (!localStorage.getItem('migratedToFirebase')) {
+    localStorage.setItem('migratedToFirebase', 'true');
   }
 };
 
+// Drivers
+export const getDrivers = async (): Promise<Driver[]> => {
+  try {
+    const driversRef = collection(db, 'drivers');
+    const driversSnapshot = await getDocs(driversRef);
+    return driversSnapshot.docs.map(doc => doc.data() as Driver);
+  } catch (error) {
+    console.error('Error getting drivers from Firebase:', error);
+    // Fallback to localStorage if Firebase fails
+    return JSON.parse(localStorage.getItem('drivers') || '[]');
+  }
+};
+
+export const getDriverById = async (id: string): Promise<Driver | undefined> => {
+  try {
+    const driverRef = doc(db, 'drivers', id);
+    const driverSnapshot = await getDoc(driverRef);
+    
+    if (driverSnapshot.exists()) {
+      return driverSnapshot.data() as Driver;
+    }
+    return undefined;
+  } catch (error) {
+    console.error('Error getting driver from Firebase:', error);
+    // Fallback to localStorage if Firebase fails
+    const drivers = JSON.parse(localStorage.getItem('drivers') || '[]');
+    return drivers.find((driver: Driver) => driver.id === id);
+  }
+};
+
+export const addDriver = async (driver: Driver): Promise<Driver> => {
+  try {
+    const driversRef = collection(db, 'drivers');
+    await setDoc(doc(driversRef, driver.id), driver);
+    return driver;
+  } catch (error) {
+    console.error('Error adding driver to Firebase:', error);
+    // Fallback to localStorage if Firebase fails
+    const drivers = JSON.parse(localStorage.getItem('drivers') || '[]');
+    const existingDriverIndex = drivers.findIndex((d: Driver) => d.id === driver.id);
+    
+    if (existingDriverIndex !== -1) {
+      drivers[existingDriverIndex] = driver;
+    } else {
+      drivers.push(driver);
+    }
+    
+    localStorage.setItem('drivers', JSON.stringify(drivers));
+    return driver;
+  }
+};
+
+// Rides
 export const getRides = async (): Promise<Ride[]> => {
   try {
-    console.log("Fetching rides from Firestore collection");
-    const ridesCollection = collection(db, "rides");
-    const querySnapshot = await getDocs(ridesCollection);
-    
-    console.log(`Found ${querySnapshot.size} rides in Firestore`);
-    
-    const rides: Ride[] = [];
-    querySnapshot.forEach((doc) => {
-      const data = doc.data();
-      console.log(`Processing ride document ${doc.id}:`, data);
-      
-      // Create a new object with the doc ID and all fields from data
-      const rideData = {
-        ...data,
-        id: doc.id,
-      } as Ride; // Type assertion here to treat it as a Ride
-      
-      // Convert Firestore timestamps to strings if present
-      if (rideData.departure && rideData.departure.time) {
-        if (rideData.departure.time instanceof Timestamp) {
-          rideData.departure.time = rideData.departure.time.toDate().toISOString();
-        }
-      }
-      
-      if (rideData.destination && rideData.destination.time) {
-        if (rideData.destination.time instanceof Timestamp) {
-          rideData.destination.time = rideData.destination.time.toDate().toISOString();
-        }
-      }
-      
-      rides.push(rideData);
-    });
-    
-    console.log("Processed rides:", JSON.stringify(rides));
-    return rides;
+    const ridesRef = collection(db, 'rides');
+    const ridesSnapshot = await getDocs(ridesRef);
+    return ridesSnapshot.docs.map(doc => doc.data() as Ride);
   } catch (error) {
-    console.error("Error getting rides from Firebase:", error);
-    // Fallback to localStorage
-    const localRides = localStorage.getItem("rides");
-    return localRides ? JSON.parse(localRides) : [];
-  }
-};
-
-export const getUserRides = async (userAddress: string): Promise<Ride[]> => {
-  try {
-    const q = query(
-      collection(db, "rides"),
-      where("passengers", "array-contains", userAddress)
-    );
-    const querySnapshot = await getDocs(q);
-    const rides: Ride[] = [];
-    querySnapshot.forEach((doc) => {
-      const rideData = doc.data() as Omit<Ride, "id">;
-      rides.push({ id: doc.id, ...rideData });
-    });
-    return rides;
-  } catch (error) {
-    console.error("Error getting user rides from Firebase:", error);
-    const localRides = localStorage.getItem("rides");
-    if (localRides) {
-      const rides = JSON.parse(localRides);
-      return rides.filter((ride: Ride) =>
-        ride.passengers?.includes(userAddress)
-      );
-    }
-    return [];
-  }
-};
-
-export const getDriverRides = async (
-  driverAddress: string
-): Promise<Ride[]> => {
-  try {
-    const q = query(
-      collection(db, "rides"),
-      where("driver.address", "==", driverAddress)
-    );
-    const querySnapshot = await getDocs(q);
-    const rides: Ride[] = [];
-    querySnapshot.forEach((doc) => {
-      const rideData = doc.data() as Omit<Ride, "id">;
-      rides.push({ id: doc.id, ...rideData });
-    });
-    return rides;
-  } catch (error) {
-    console.error("Error getting driver rides from Firebase:", error);
-    const localRides = localStorage.getItem("rides");
-    if (localRides) {
-      const rides = JSON.parse(localRides);
-      return rides.filter(
-        (ride: Ride) => ride.driver.address === driverAddress
-      );
-    }
-    return [];
-  }
-};
-
-export const createRide = async (ride: Omit<Ride, "id">): Promise<string> => {
-  try {
-    console.log("==== CREATING RIDE IN FIREBASE ====");
-    console.log("Input ride data:", JSON.stringify(ride));
-    
-    // Validate required fields
-    if (!ride.driver || !ride.departure || !ride.destination || ride.price === undefined) {
-      console.error("Missing required ride fields:", ride);
-      throw new Error("Missing required ride fields in createRide");
-    }
-
-    // Format the time string properly if needed
-    let departureTime = ride.departure.time;
-    if (typeof departureTime === 'string' && !isNaN(Date.parse(departureTime))) {
-      departureTime = new Date(departureTime).toISOString();
-    }
-    
-    // Create a properly formatted ride object
-    const rideToSave = {
-      driver: {
-        id: ride.driver.id || `driver-${Date.now()}`,
-        name: ride.driver.name || "Anonymous Driver",
-        rating: ride.driver.rating || 0,
-        address: ride.driver.address,
-        avatar: ride.driver.avatar,
-      },
-      departure: {
-        location: ride.departure.location,
-        time: departureTime,
-      },
-      destination: {
-        location: ride.destination.location,
-        time: ride.destination.time || null,
-      },
-      price: Number(ride.price),
-      seatsAvailable: Number(ride.seatsAvailable || 1),
-      status: ride.status || "active",
-      passengers: ride.passengers || [],
-      createdAt: serverTimestamp(),
-    };
-    
-    console.log("Formatted ride object for Firestore:", JSON.stringify(rideToSave));
-    
-    // Add the document to Firestore
-    const ridesCollection = collection(db, "rides");
-    const docRef = await addDoc(ridesCollection, rideToSave);
-    
-    console.log("Successfully created ride with ID:", docRef.id);
-    
-    // Verify the ride was created by fetching it back
-    const rideDoc = await getDoc(docRef);
-    if (!rideDoc.exists()) {
-      throw new Error("Ride document was not created successfully");
-    }
-    
-    // Also save to localStorage as backup
-    const localRides = localStorage.getItem("rides") || "[]";
-    const rides = JSON.parse(localRides);
-    const newRide = { id: docRef.id, ...rideToSave };
-    rides.push(newRide);
-    localStorage.setItem("rides", JSON.stringify(rides));
-    
-    return docRef.id;
-  } catch (error) {
-    console.error("Error creating ride in Firebase:", error);
-    
+    console.error('Error getting rides from Firebase:', error);
     // Fallback to localStorage if Firebase fails
-    const localRides = localStorage.getItem("rides") || "[]";
-    const rides = JSON.parse(localRides);
-    const id = `ride-${Date.now()}`;
-    const newRide = { id, ...ride };
-    rides.push(newRide);
-    localStorage.setItem("rides", JSON.stringify(rides));
-    console.log("Fallback: Created ride in localStorage with ID:", id);
-    return id;
+    return JSON.parse(localStorage.getItem('rides') || '[]');
   }
 };
 
-export const updateRideStatus = async (
-  rideId: string,
-  status: Ride["status"]
-): Promise<boolean> => {
+export const getRideById = async (id: string): Promise<Ride | undefined> => {
   try {
-    await updateDoc(doc(db, "rides", rideId), {
-      status,
-    });
-    return true;
-  } catch (error) {
-    console.error("Error updating ride status in Firebase:", error);
-    const localRides = localStorage.getItem("rides");
-    if (localRides) {
-      const rides = JSON.parse(localRides);
-      const updatedRides = rides.map((ride: Ride) => {
-        if (ride.id === rideId) {
-          return { ...ride, status };
-        }
-        return ride;
-      });
-      localStorage.setItem("rides", JSON.stringify(updatedRides));
-      return true;
+    const rideRef = doc(db, 'rides', id);
+    const rideSnapshot = await getDoc(rideRef);
+    
+    if (rideSnapshot.exists()) {
+      return rideSnapshot.data() as Ride;
     }
-    return false;
+    return undefined;
+  } catch (error) {
+    console.error('Error getting ride from Firebase:', error);
+    // Fallback to localStorage if Firebase fails
+    const rides = JSON.parse(localStorage.getItem('rides') || '[]');
+    return rides.find((ride: Ride) => ride.id === id);
   }
 };
 
-export const bookRide = async (
-  rideId: string,
-  passengerAddress: string
-): Promise<boolean> => {
+export const addRide = async (ride: Ride): Promise<Ride> => {
   try {
-    const rideRef = doc(db, "rides", rideId);
-    const rideSnap = await getDoc(rideRef);
-
-    if (rideSnap.exists()) {
-      const rideData = rideSnap.data() as Ride;
-      const passengers = rideData.passengers || [];
-
-      if (passengers.includes(passengerAddress)) {
-        return false; // Already booked
-      }
-
-      passengers.push(passengerAddress);
-      const seatsAvailable = rideData.seatsAvailable - 1;
-
-      await updateDoc(rideRef, {
-        passengers,
-        seatsAvailable,
-      });
-
-      return true;
+    if (!ride.id) {
+      const ridesRef = collection(db, 'rides');
+      const ridesSnapshot = await getDocs(ridesRef);
+      ride.id = (ridesSnapshot.size + 1).toString();
     }
-
-    return false;
+    
+    // Make sure the driver exists in the drivers collection
+    await addDriver(ride.driver);
+    
+    const ridesRef = collection(db, 'rides');
+    await setDoc(doc(ridesRef, ride.id), ride);
+    return ride;
   } catch (error) {
-    console.error("Error booking ride in Firebase:", error);
-    const localRides = localStorage.getItem("rides");
-    if (localRides) {
-      const rides = JSON.parse(localRides);
-      const updatedRides = rides.map((ride: Ride) => {
-        if (ride.id === rideId) {
-          const passengers = ride.passengers || [];
-          if (passengers.includes(passengerAddress)) {
-            return ride; // Already booked
-          }
-          passengers.push(passengerAddress);
-          return {
-            ...ride,
-            passengers,
-            seatsAvailable: ride.seatsAvailable - 1,
-          };
-        }
-        return ride;
-      });
-      localStorage.setItem("rides", JSON.stringify(updatedRides));
-      return true;
-    }
-    return false;
+    console.error('Error adding ride to Firebase:', error);
+    // Fallback to localStorage if Firebase fails
+    const rides = JSON.parse(localStorage.getItem('rides') || '[]');
+    ride.id = (rides.length + 1).toString();
+    
+    rides.push(ride);
+    localStorage.setItem('rides', JSON.stringify(rides));
+    return ride;
   }
 };
 
+export const updateRide = async (updatedRide: Ride): Promise<Ride> => {
+  try {
+    const rideRef = doc(db, 'rides', updatedRide.id);
+    await updateDoc(rideRef, updatedRide as any);
+    return updatedRide;
+  } catch (error) {
+    console.error('Error updating ride in Firebase:', error);
+    // Fallback to localStorage if Firebase fails
+    const rides = JSON.parse(localStorage.getItem('rides') || '[]');
+    const index = rides.findIndex((ride: Ride) => ride.id === updatedRide.id);
+    
+    if (index !== -1) {
+      rides[index] = updatedRide;
+      localStorage.setItem('rides', JSON.stringify(rides));
+    }
+    
+    return updatedRide;
+  }
+};
+
+// Ride status management functions
 export const startRide = async (rideId: string): Promise<boolean> => {
   try {
-    const rideRef = doc(db, "rides", rideId);
-
-    await updateDoc(rideRef, {
-      status: "in_progress",
-      startedAt: new Date().toISOString(),
-    });
-
+    const ride = await getRideById(rideId);
+    if (!ride) return false;
+    
+    ride.status = 'in_progress';
+    ride.startedAt = new Date().toISOString();
+    
+    await updateRide(ride);
     return true;
   } catch (error) {
-    console.error("Error starting ride in Firebase:", error);
-    const localRides = localStorage.getItem("rides");
-    if (localRides) {
-      const rides = JSON.parse(localRides);
-      const updatedRides = rides.map((ride: Ride) => {
-        if (ride.id === rideId) {
-          return {
-            ...ride,
-            status: "in_progress",
-            startedAt: new Date().toISOString(),
-          };
-        }
-        return ride;
-      });
-      localStorage.setItem("rides", JSON.stringify(updatedRides));
-      return true;
-    }
+    console.error('Error starting ride in Firebase:', error);
     return false;
   }
 };
 
 export const endRide = async (rideId: string): Promise<boolean> => {
   try {
-    const rideRef = doc(db, "rides", rideId);
-
-    await updateDoc(rideRef, {
-      status: "completed",
-      endedAt: new Date().toISOString(),
-      paymentStatus: "pending",
-    });
-
+    const ride = await getRideById(rideId);
+    if (!ride) return false;
+    
+    ride.status = 'completed';
+    ride.endedAt = new Date().toISOString();
+    ride.paymentStatus = 'pending';
+    
+    await updateRide(ride);
     return true;
   } catch (error) {
-    console.error("Error ending ride in Firebase:", error);
-    const localRides = localStorage.getItem("rides");
-    if (localRides) {
-      const rides = JSON.parse(localRides);
-      const updatedRides = rides.map((ride: Ride) => {
-        if (ride.id === rideId) {
-          return {
-            ...ride,
-            status: "completed",
-            endedAt: new Date().toISOString(),
-            paymentStatus: "pending",
-          };
-        }
-        return ride;
-      });
-      localStorage.setItem("rides", JSON.stringify(updatedRides));
-      return true;
-    }
+    console.error('Error ending ride in Firebase:', error);
     return false;
   }
 };
 
 export const processPayment = async (rideId: string): Promise<boolean> => {
   try {
-    const rideRef = doc(db, "rides", rideId);
-
-    await updateDoc(rideRef, {
-      paymentStatus: "completed",
-    });
-
+    const ride = await getRideById(rideId);
+    if (!ride) return false;
+    
+    ride.paymentStatus = 'completed';
+    
+    await updateRide(ride);
     return true;
   } catch (error) {
-    console.error("Error processing payment in Firebase:", error);
-    const localRides = localStorage.getItem("rides");
-    if (localRides) {
-      const rides = JSON.parse(localRides);
-      const updatedRides = rides.map((ride: Ride) => {
-        if (ride.id === rideId) {
-          return {
-            ...ride,
-            paymentStatus: "completed",
-          };
+    console.error('Error processing payment in Firebase:', error);
+    return false;
+  }
+};
+
+export const searchRides = async (criteria: {
+  from?: string;
+  to?: string;
+  date?: string;
+  time?: string;
+  seats?: number;
+}): Promise<Ride[]> => {
+  try {
+    let rides = await getRides();
+    
+    return rides.filter(ride => {
+      if (criteria.from && !ride.departure.location.toLowerCase().includes(criteria.from.toLowerCase())) {
+        return false;
+      }
+      
+      if (criteria.to && !ride.destination.location.toLowerCase().includes(criteria.to.toLowerCase())) {
+        return false;
+      }
+      
+      if (criteria.date) {
+        const rideDate = new Date(ride.departure.time).toLocaleDateString();
+        const searchDate = new Date(criteria.date).toLocaleDateString();
+        if (rideDate !== searchDate) {
+          return false;
         }
-        return ride;
-      });
-      localStorage.setItem("rides", JSON.stringify(updatedRides));
+      }
+      
+      if (criteria.seats && ride.seatsAvailable < criteria.seats) {
+        return false;
+      }
+      
       return true;
-    }
-    return false;
-  }
-};
-
-export const createUserProfile = async (
-  userData: UserProfileData
-): Promise<string> => {
-  try {
-    const userProfile: UserProfile = {
-      ...userData,
-      id: `user-${Date.now()}`,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      rating: 0,
-      totalRides: 0,
-      isDriver: false,
-    };
-
-    await setDoc(doc(db, "users", userData.walletAddress), userProfile);
-
-    return userData.walletAddress;
-  } catch (error) {
-    console.error("Error creating user profile in Firebase:", error);
-    const userProfile: UserProfile = {
-      ...userData,
-      id: `user-${Date.now()}`,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      rating: 0,
-      totalRides: 0,
-      isDriver: false,
-    };
-
-    localStorage.setItem(
-      `user_${userData.walletAddress}`,
-      JSON.stringify(userProfile)
-    );
-    return userData.walletAddress;
-  }
-};
-
-export const getUserProfile = async (
-  walletAddress: string
-): Promise<UserProfile | null> => {
-  try {
-    const userDoc = await getDoc(doc(db, "users", walletAddress));
-
-    if (userDoc.exists()) {
-      return userDoc.data() as UserProfile;
-    }
-
-    return null;
-  } catch (error) {
-    console.error("Error getting user profile from Firebase:", error);
-    const localUser = localStorage.getItem(`user_${walletAddress}`);
-    return localUser ? JSON.parse(localUser) : null;
-  }
-};
-
-export const updateUserProfile = async (
-  walletAddress: string,
-  userData: Partial<UserProfile>
-): Promise<boolean> => {
-  try {
-    const userRef = doc(db, "users", walletAddress);
-    await updateDoc(userRef, {
-      ...userData,
-      updatedAt: Date.now(),
     });
+  } catch (error) {
+    console.error('Error searching rides in Firebase:', error);
+    // Fallback to localStorage if Firebase fails
+    return JSON.parse(localStorage.getItem('rides') || '[]');
+  }
+};
+
+// User rides (booked rides)
+export const getUserRides = async (userAddress: string): Promise<Ride[]> => {
+  try {
+    const ridesRef = collection(db, 'rides');
+    const q = query(ridesRef, where('passengers', 'array-contains', userAddress));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => doc.data() as Ride);
+  } catch (error) {
+    console.error('Error getting user rides from Firebase:', error);
+    // Fallback to localStorage if Firebase fails
+    const userRides = JSON.parse(localStorage.getItem('userRides') || '[]');
+    return userRides
+      .filter((entry: {userAddress: string, ride: Ride}) => entry.userAddress === userAddress)
+      .map((entry: {userAddress: string, ride: Ride}) => entry.ride);
+  }
+};
+
+// New structure for userRides in Firebase
+export type UserRide = {
+  id: string;
+  userAddress: string;
+  rideId: string;
+  timestamp: string;
+};
+
+export const bookRideForUser = async (userAddress: string, rideId: string): Promise<boolean> => {
+  try {
+    if (!userAddress) return false;
+    
+    const ride = await getRideById(rideId);
+    if (!ride || ride.seatsAvailable < 1) return false;
+    
+    // Update the ride
+    ride.seatsAvailable -= 1;
+    if (!ride.passengers) ride.passengers = [];
+    ride.passengers.push(userAddress);
+    await updateRide(ride);
+    
+    // Add to user's booked rides collection
+    const userRidesRef = collection(db, 'userRides');
+    await addDoc(userRidesRef, {
+      userAddress,
+      rideId,
+      timestamp: new Date().toISOString()
+    } as UserRide);
+    
     return true;
   } catch (error) {
-    console.error("Error updating user profile in Firebase:", error);
-    const localUser = localStorage.getItem(`user_${walletAddress}`);
-    if (localUser) {
-      const user = JSON.parse(localUser);
-      const updatedUser = {
-        ...user,
-        ...userData,
-        updatedAt: Date.now(),
-      };
-      localStorage.setItem(
-        `user_${walletAddress}`,
-        JSON.stringify(updatedUser)
-      );
-      return true;
+    console.error('Error booking ride in Firebase:', error);
+    // Fallback to localStorage if Firebase fails
+    const ride = JSON.parse(localStorage.getItem('rides') || '[]')
+      .find((r: Ride) => r.id === rideId);
+    
+    if (!ride || ride.seatsAvailable < 1) return false;
+    
+    // Update the ride
+    ride.seatsAvailable -= 1;
+    if (!ride.passengers) ride.passengers = [];
+    ride.passengers.push(userAddress);
+    
+    // Update rides in localStorage
+    const rides = JSON.parse(localStorage.getItem('rides') || '[]');
+    const index = rides.findIndex((r: Ride) => r.id === rideId);
+    if (index !== -1) {
+      rides[index] = ride;
+      localStorage.setItem('rides', JSON.stringify(rides));
     }
-    return false;
+    
+    // Add to user's booked rides
+    const userRides = JSON.parse(localStorage.getItem('userRides') || '[]');
+    userRides.push({
+      userAddress,
+      ride
+    });
+    localStorage.setItem('userRides', JSON.stringify(userRides));
+    
+    return true;
   }
 };
 
-export { addDoc as addRide };
+// Initialize Firebase on app load
+initDB().catch(console.error);
 
-export default {
-  getRides,
-  getUserRides,
-  getDriverRides,
-  createRide,
-  updateRideStatus,
-  bookRide,
-  startRide,
-  endRide,
-  processPayment,
-  migrateLocalStorageToFirebase,
-  createUserProfile,
-  getUserProfile,
-  updateUserProfile,
-};
+// Export the Firebase specific functions
+export { db };

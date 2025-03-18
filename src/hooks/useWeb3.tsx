@@ -1,45 +1,41 @@
 
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { toast } from '@/hooks/use-toast';
-import { getUserProfile, createUserProfile, UserProfile } from '@/lib/firebase';
-import { UserProfileData } from '@/components/profile/UserRegistrationModal';
 
 interface Web3ContextType {
   address: string | null;
   balance: string | null;
   isConnecting: boolean;
-  userProfile: UserProfile | null;
-  connect: () => Promise<string | null>;
+  connect: () => Promise<void>;
   disconnect: () => void;
-  completeRegistration: (userData: UserProfileData) => Promise<boolean>;
 }
 
 const Web3Context = createContext<Web3ContextType>({
   address: null,
   balance: null,
   isConnecting: false,
-  userProfile: null,
-  connect: async () => null,
+  connect: async () => {},
   disconnect: () => {},
-  completeRegistration: async () => false,
 });
 
 export const Web3Provider = ({ children }: { children: ReactNode }) => {
   const [address, setAddress] = useState<string | null>(null);
   const [balance, setBalance] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
+  // Check if MetaMask is installed
   const isMetaMaskInstalled = () => {
     return typeof window !== 'undefined' && window.ethereum !== undefined;
   };
 
+  // Format balance to 4 decimal places
   const formatBalance = (rawBalance: string) => {
     if (!rawBalance) return null;
     const balance = parseInt(rawBalance, 16) / 1e18;
     return balance.toFixed(4);
   };
 
+  // Get account balance
   const getBalance = async (account: string) => {
     if (!isMetaMaskInstalled() || !account) return null;
     
@@ -56,53 +52,41 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const connect = async (): Promise<string | null> => {
+  // Connect wallet
+  const connect = async () => {
     if (!isMetaMaskInstalled()) {
       toast({
         title: "MetaMask not detected",
         description: "Please install MetaMask browser extension to connect",
         variant: "destructive",
       });
-      return null;
+      return;
     }
 
     setIsConnecting(true);
 
     try {
+      // Request accounts access
       const accounts = await window.ethereum.request({
         method: 'eth_requestAccounts',
       });
       
       if (accounts.length > 0) {
-        const walletAddress = accounts[0];
-        setAddress(walletAddress);
+        setAddress(accounts[0]);
         
-        const currentBalance = await getBalance(walletAddress);
+        // Get and set balance
+        const currentBalance = await getBalance(accounts[0]);
         setBalance(currentBalance);
         
-        // Try to get user profile but don't require it
-        const profile = await getUserProfile(walletAddress);
-        if (profile) {
-          setUserProfile(profile);
-          
-          toast({
-            title: "Wallet connected",
-            description: "Welcome back, " + profile.username,
-          });
-        } else {
-          toast({
-            title: "Wallet connected",
-            description: "Connected to " + shortenAddress(walletAddress),
-          });
-        }
-        
+        // Store connection in localStorage to persist between refreshes
         localStorage.setItem('walletConnected', 'true');
-        localStorage.setItem('walletAddress', walletAddress);
+        localStorage.setItem('walletAddress', accounts[0]);
         
-        return walletAddress;
+        toast({
+          title: "Wallet connected",
+          description: "Your wallet has been successfully connected",
+        });
       }
-      
-      return null;
     } catch (error: any) {
       console.error('Error connecting wallet:', error);
       toast({
@@ -110,88 +94,59 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
         description: error?.message || "Failed to connect wallet",
         variant: "destructive",
       });
-      return null;
     } finally {
       setIsConnecting(false);
     }
   };
 
-  const completeRegistration = async (userData: UserProfileData): Promise<boolean> => {
-    try {
-      await createUserProfile(userData);
-      
-      const profile = await getUserProfile(userData.walletAddress);
-      if (profile) {
-        setUserProfile(profile);
-        
-        if (!address) {
-          setAddress(userData.walletAddress);
-        }
-        
-        localStorage.setItem('walletConnected', 'true');
-        localStorage.setItem('walletAddress', userData.walletAddress);
-        
-        return true;
-      }
-      
-      return false;
-    } catch (error) {
-      console.error('Error creating user profile:', error);
-      toast({
-        title: "Registration failed",
-        description: "Failed to create your profile. Please try again.",
-        variant: "destructive",
-      });
-      return false;
-    }
-  };
-
+  // Disconnect wallet
   const disconnect = () => {
     setAddress(null);
     setBalance(null);
-    setUserProfile(null);
     
+    // Remove wallet connection from localStorage
     localStorage.removeItem('walletConnected');
     localStorage.removeItem('walletAddress');
   };
 
+  // Handle account changes
   const handleAccountsChanged = async (accounts: string[]) => {
     if (accounts.length === 0) {
+      // User disconnected their wallet
       disconnect();
     } else if (accounts[0] !== address) {
-      const newAddress = accounts[0];
-      setAddress(newAddress);
-      
-      const currentBalance = await getBalance(newAddress);
+      setAddress(accounts[0]);
+      const currentBalance = await getBalance(accounts[0]);
       setBalance(currentBalance);
       
-      const profile = await getUserProfile(newAddress);
-      setUserProfile(profile);
-      
-      localStorage.setItem('walletAddress', newAddress);
+      // Update localStorage with new address
+      localStorage.setItem('walletAddress', accounts[0]);
       
       toast({
-        title: profile ? "Account changed" : "New account detected",
-        description: profile 
-          ? `Welcome back, ${profile.username}` 
-          : `Connected to ${shortenAddress(newAddress)}`,
+        title: "Account changed",
+        description: `Connected to ${accounts[0].slice(0, 6)}...${accounts[0].slice(-4)}`,
       });
     }
   };
 
+  // Handle chain changes
   const handleChainChanged = () => {
+    // Reload the page when the chain changes
     window.location.reload();
   };
 
+  // Set up event listeners
   useEffect(() => {
     if (!isMetaMaskInstalled()) return;
 
+    // Check for existing connection in localStorage
     const checkConnection = async () => {
       const walletConnected = localStorage.getItem('walletConnected');
       const savedAddress = localStorage.getItem('walletAddress');
       
       if (walletConnected === 'true' && savedAddress) {
         try {
+          // Verify if the wallet is still connected through MetaMask
           const accounts = await window.ethereum.request({
             method: 'eth_accounts',
           });
@@ -200,10 +155,8 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
             setAddress(accounts[0]);
             const currentBalance = await getBalance(accounts[0]);
             setBalance(currentBalance);
-            
-            const profile = await getUserProfile(accounts[0]);
-            setUserProfile(profile);
           } else {
+            // If MetaMask no longer has the account, clear localStorage
             localStorage.removeItem('walletConnected');
             localStorage.removeItem('walletAddress');
           }
@@ -217,11 +170,13 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
 
     checkConnection();
 
+    // Set up event listeners for MetaMask
     if (window.ethereum) {
       window.ethereum.on('accountsChanged', handleAccountsChanged);
       window.ethereum.on('chainChanged', handleChainChanged);
     }
 
+    // Clean up event listeners
     return () => {
       if (window.ethereum) {
         window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
@@ -236,20 +191,13 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
         address,
         balance,
         isConnecting,
-        userProfile,
         connect,
         disconnect,
-        completeRegistration,
       }}
     >
       {children}
     </Web3Context.Provider>
   );
-};
-
-// Helper function for address shortening
-const shortenAddress = (address: string): string => {
-  return `${address.slice(0, 6)}...${address.slice(-4)}`;
 };
 
 export const useWeb3 = () => useContext(Web3Context);

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Navbar } from '@/components/layout/Navbar';
@@ -10,7 +9,7 @@ import { useWeb3 } from '@/hooks/useWeb3';
 import { Ride, getUserRides, getRides } from '@/lib/firebase';
 
 const Dashboard = () => {
-  const { address, connect, userProfile } = useWeb3();
+  const { address } = useWeb3();
   const [activeTab, setActiveTab] = useState('bookings');
   const [myRides, setMyRides] = useState<Ride[]>([]);
   const [offeredRides, setOfferedRides] = useState<Ride[]>([]);
@@ -59,14 +58,6 @@ const Dashboard = () => {
       minute: '2-digit' 
     });
   };
-
-  const handleConnectWallet = async () => {
-    try {
-      await connect();
-    } catch (error) {
-      console.error("Error connecting wallet:", error);
-    }
-  };
   
   if (!address) {
     return (
@@ -81,13 +72,7 @@ const Dashboard = () => {
                 Please connect your wallet to access your dashboard.
               </p>
               <div className="max-w-xs mx-auto">
-                <Button 
-                  variant="primary"
-                  onClick={handleConnectWallet}
-                  iconLeft={<Wallet className="h-4 w-4" />}
-                >
-                  Connect Wallet
-                </Button>
+                {/* Wallet connect button will be shown in the navbar */}
               </div>
             </Card>
           </div>
@@ -186,7 +171,8 @@ const Dashboard = () => {
                               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-brand-600">
                                 <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
                                 <circle cx="9" cy="7" r="4"></circle>
-                                <path d="M22 21v-2a4 4 0 0 1 0 7.75"></path>
+                                <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                               </svg>
                             </div>
                             <div>
