@@ -127,8 +127,19 @@ export const getUserRides = async (userAddress: string): Promise<Ride[]> => {
     const querySnapshot = await getDocs(q);
     const rides: Ride[] = [];
     querySnapshot.forEach((doc) => {
-      const rideData = doc.data() as Omit<Ride, "id">;
-      rides.push({ id: doc.id, ...rideData });
+      const data = doc.data();
+      
+      // Fix: Check if time is a Firestore timestamp by checking for toDate method
+      if (data.departure && data.departure.time && typeof data.departure.time === 'object' && 'toDate' in data.departure.time) {
+        data.departure.time = data.departure.time.toDate().toISOString();
+      }
+      
+      // Also check destination time if it exists
+      if (data.destination && data.destination.time && typeof data.destination.time === 'object' && 'toDate' in data.destination.time) {
+        data.destination.time = data.destination.time.toDate().toISOString();
+      }
+      
+      rides.push({ id: doc.id, ...data } as Ride);
     });
     return rides;
   } catch (error) {
