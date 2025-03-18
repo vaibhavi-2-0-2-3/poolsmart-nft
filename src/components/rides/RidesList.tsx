@@ -1,221 +1,244 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { getRides, Ride } from '@/lib/firebase';
 import { Card } from '@/components/shared/Card';
+import { Car, Clock, MapPin, Users, DollarSign, Star } from 'lucide-react';
 import { Button } from '@/components/shared/Button';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Star, MapPin, Calendar, Clock, Users, Loader2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { Ride, getRides, bookRide } from '@/lib/firebase';
+import { RideActions } from './RideActions';
 import { useWeb3 } from '@/hooks/useWeb3';
 import { useToast } from '@/hooks/use-toast';
+import { Link } from 'react-router-dom';
+import { PaymentModal } from './PaymentModal';
 
 interface RidesListProps {
   searchParams?: {
-    from: string;
-    to: string;
-    date: string;
-    time: string;
-    seats: string;
+    from?: string;
+    to?: string;
+    date?: string;
+    time?: string;
+    seats?: string;
   };
+  refreshTrigger?: number;
 }
 
-const RidesList: React.FC<RidesListProps> = ({ searchParams }) => {
+const RidesList: React.FC<RidesListProps> = ({ searchParams = {}, refreshTrigger = 0 }) => {
   const [rides, setRides] = useState<Ride[]>([]);
   const [loading, setLoading] = useState(true);
-  const { address } = useWeb3();
+  const [selectedRide, setSelectedRide] = useState<Ride | null>(null);
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const { address, connect, userProfile } = useWeb3();
   const { toast } = useToast();
-  
-  useEffect(() => {
-    loadRides();
-  }, []);
-  
-  const loadRides = async () => {
+
+  const fetchRides = useCallback(async () => {
     setLoading(true);
     try {
-      const ridesData = await getRides();
-      setRides(ridesData);
+      console.log('RidesList: Fetching rides with refreshTrigger:', refreshTrigger);
+      const allRides = await getRides();
+      console.log('RidesList: Fetched rides count:', allRides.length);
+      
+      // Filter rides based on search params if provided
+      let filteredRides = allRides;
+      
+      if (searchParams.from) {
+        filteredRides = filteredRides.filter(ride => 
+          ride.departure.location.toLowerCase().includes(searchParams.from?.toLowerCase() || '')
+        );
+      }
+      
+      if (searchParams.to) {
+        filteredRides = filteredRides.filter(ride => 
+          ride.destination.location.toLowerCase().includes(searchParams.to?.toLowerCase() || '')
+        );
+      }
+      
+      if (searchParams.date) {
+        filteredRides = filteredRides.filter(ride => {
+          try {
+            const rideDate = new Date(ride.departure.time).toLocaleDateString();
+            const searchDate = new Date(searchParams.date || '').toLocaleDateString();
+            return rideDate === searchDate;
+          } catch (e) {
+            console.error('Error comparing dates:', e);
+            return false;
+          }
+        });
+      }
+      
+      if (searchParams.seats) {
+        const requiredSeats = parseInt(searchParams.seats || '1');
+        filteredRides = filteredRides.filter(ride => 
+          ride.seatsAvailable >= requiredSeats
+        );
+      }
+      
+      console.log('RidesList: Filtered rides count:', filteredRides.length);
+      setRides(filteredRides);
     } catch (error) {
-      console.error("Error loading rides:", error);
+      console.error('Error fetching rides:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load rides. Please try again.',
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchParams, refreshTrigger, toast]);
   
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      weekday: 'short', 
-      month: 'short', 
-      day: 'numeric' 
-    });
-  };
-  
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
-  };
-  
-  const handleBookRide = async (rideId: string) => {
-    if (!address) {
-      toast({
-        title: "Wallet not connected",
-        description: "Please connect your wallet to book a ride.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
+  // This effect runs whenever refreshTrigger changes
+  useEffect(() => {
+    console.log("RidesList: useEffect triggered with refreshTrigger:", refreshTrigger);
+    fetchRides();
+  }, [fetchRides, refreshTrigger]);
+
+  const handleStatusChange = async () => {
+    // Refresh rides when status changes
     try {
-      const success = await bookRide(rideId, address);
-      if (success) {
-        toast({
-          title: "Ride booked!",
-          description: "You have successfully booked this ride.",
-        });
-        // Refresh rides to update the list
-        loadRides();
-      } else {
-        toast({
-          title: "Booking failed",
-          description: "Failed to book this ride. Please try again.",
-          variant: "destructive",
-        });
-      }
+      const allRides = await getRides();
+      setRides(allRides);
     } catch (error) {
-      console.error("Error booking ride:", error);
+      console.error('Error refreshing rides:', error);
+    }
+  };
+
+  const handleConnect = async () => {
+    try {
+      await connect();
+    } catch (error) {
+      console.error("Connection error:", error);
       toast({
-        title: "Booking error",
-        description: "An error occurred while booking. Please try again later.",
+        title: "Connection error",
+        description: "Failed to connect wallet. Please try again.",
         variant: "destructive",
       });
     }
   };
-  
-  const getInitials = (name: string) => {
-    return name.charAt(0).toUpperCase();
+
+  const handleBookRide = (ride: Ride) => {
+    setSelectedRide(ride);
+    setPaymentModalOpen(true);
   };
-  
+
+  const handlePaymentSuccess = () => {
+    // Refresh rides after payment
+    handleStatusChange();
+    setPaymentModalOpen(false);
+    setSelectedRide(null);
+  };
+
+  if (loading) {
+    return (
+      <div className="mt-6 animate-pulse space-y-4">
+        {[...Array(3)].map((_, i) => (
+          <Card key={i} className="p-6">
+            <div className="h-16 bg-gray-200 rounded"></div>
+            <div className="h-12 bg-gray-200 rounded mt-4"></div>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  if (rides.length === 0) {
+    return (
+      <Card className="mt-6 p-8 text-center">
+        <Car className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+        <h2 className="text-2xl font-semibold mb-2">No rides found</h2>
+        <p className="text-muted-foreground mb-6">
+          {Object.keys(searchParams).some(key => !!searchParams[key as keyof typeof searchParams])
+            ? "No rides match your search criteria. Try different parameters."
+            : "There are no rides available at the moment. Try again later."}
+        </p>
+      </Card>
+    );
+  }
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6">Available Rides</h1>
-      
-      {loading ? (
-        <Card className="p-8">
-          <div className="flex justify-center">
-            <Loader2 className="animate-spin h-6 w-6 text-brand-600" />
-          </div>
-        </Card>
-      ) : rides.length === 0 ? (
-        <Card className="p-8 text-center">
-          <p className="text-lg text-muted-foreground">No rides available at the moment.</p>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {rides.map((ride) => (
-            <Card key={ride.id} className="overflow-hidden">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <Link to={`/driver/${ride.driver.id}`} className="flex items-center hover:opacity-80 transition-opacity">
-                    <Avatar className="h-10 w-10">
-                      {ride.driver.avatar ? (
-                        <AvatarImage src={ride.driver.avatar} alt={ride.driver.name} />
-                      ) : (
-                        <AvatarFallback className="bg-brand-100 text-brand-600">
-                          {getInitials(ride.driver.name)}
-                        </AvatarFallback>
-                      )}
-                    </Avatar>
-                    <div className="ml-3">
-                      <h3 className="text-sm font-medium">{ride.driver.name}</h3>
-                      <div className="flex items-center mt-1">
-                        <div className="flex">
-                          {[...Array(5)].map((_, i) => (
-                            <Star 
-                              key={i} 
-                              className={`h-3 w-3 ${i < Math.floor(ride.driver.rating) ? 'text-amber-500 fill-amber-500' : 'text-gray-300'}`} 
-                            />
-                          ))}
-                        </div>
-                        <span className="ml-1 text-xs text-muted-foreground">({ride.driver.rating})</span>
-                      </div>
-                    </div>
-                  </Link>
-                  
-                  <div className="px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-medium">
-                    {ride.seatsAvailable > 0 ? 'Available' : 'Full'}
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-4">
-                    <div className="flex items-start">
-                      <div className="h-8 w-8 rounded-full bg-brand-100 flex items-center justify-center mr-3 shrink-0 mt-0.5">
-                        <MapPin className="h-4 w-4 text-brand-600" />
-                      </div>
-                      <div>
-                        <div className="text-xs text-muted-foreground">From</div>
-                        <div className="text-sm font-medium">{ride.departure.location}</div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-start">
-                      <div className="h-8 w-8 rounded-full bg-brand-100 flex items-center justify-center mr-3 shrink-0 mt-0.5">
-                        <MapPin className="h-4 w-4 text-brand-600" />
-                      </div>
-                      <div>
-                        <div className="text-xs text-muted-foreground">To</div>
-                        <div className="text-sm font-medium">{ride.destination.location}</div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div className="flex items-start">
-                      <div className="h-8 w-8 rounded-full bg-brand-100 flex items-center justify-center mr-3 shrink-0 mt-0.5">
-                        <Calendar className="h-4 w-4 text-brand-600" />
-                      </div>
-                      <div>
-                        <div className="text-xs text-muted-foreground">Date</div>
-                        <div className="text-sm font-medium">{formatDate(ride.departure.time)}</div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-start">
-                      <div className="h-8 w-8 rounded-full bg-brand-100 flex items-center justify-center mr-3 shrink-0 mt-0.5">
-                        <Clock className="h-4 w-4 text-brand-600" />
-                      </div>
-                      <div>
-                        <div className="text-xs text-muted-foreground">Time</div>
-                        <div className="text-sm font-medium">{formatTime(ride.departure.time)}</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="mt-6 flex justify-between items-center">
-                  <div>
-                    <div className="text-xs text-muted-foreground">Price</div>
-                    <div className="text-lg font-semibold">{ride.price} ETH</div>
-                  </div>
-                  
-                  {ride.seatsAvailable > 0 ? (
-                    <Button variant="primary" size="sm" onClick={() => handleBookRide(ride.id)}>
-                      Book Ride
-                    </Button>
-                  ) : (
-                    <Button variant="secondary" size="sm" disabled>
-                      <Users className="mr-2 h-4 w-4" />
-                      Full
-                    </Button>
-                  )}
+    <div className="mt-6 space-y-4">
+      {rides.map((ride) => (
+        <Card key={ride.id} className="p-6">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4">
+            <div className="flex items-center mb-4 md:mb-0">
+              <div className="flex-shrink-0 mr-4">
+                <div className="h-12 w-12 rounded-full bg-brand-100 flex items-center justify-center">
+                  <Car className="h-6 w-6 text-brand-600" />
                 </div>
               </div>
-            </Card>
-          ))}
-        </div>
+              <div>
+                <h3 className="text-lg font-semibold">
+                  {ride.departure.location} → {ride.destination.location}
+                </h3>
+                <div className="flex items-center text-sm text-muted-foreground mt-1">
+                  <Link to={`/driver/${ride.driver.id}`} className="flex items-center hover:text-brand-600 transition-colors">
+                    <Star className="h-3.5 w-3.5 mr-1 text-yellow-500" />
+                    {ride.driver.rating.toFixed(1)} · {ride.driver.name}
+                  </Link>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center">
+              <div className="text-xl font-semibold mr-4">
+                {ride.price.toFixed(3)} ETH
+              </div>
+              <RideActions 
+                ride={ride} 
+                isDriver={address === ride.driver.address}
+                onStatusChange={handleStatusChange}
+              />
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div className="flex items-center">
+              <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
+              <span>
+                {new Date(ride.departure.time).toLocaleString('en-US', {
+                  weekday: 'short',
+                  month: 'short',
+                  day: 'numeric',
+                  hour: 'numeric',
+                  minute: 'numeric',
+                })}
+              </span>
+            </div>
+            <div className="flex items-center">
+              <Users className="h-4 w-4 mr-2 text-muted-foreground" />
+              <span>{ride.seatsAvailable} seats available</span>
+            </div>
+            <div className="flex justify-end">
+              {!address ? (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleConnect}
+                >
+                  Connect Wallet to Book
+                </Button>
+              ) : (
+                address !== ride.driver.address && ride.status === 'active' && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleBookRide(ride)}
+                  >
+                    Book Ride
+                  </Button>
+                )
+              )}
+            </div>
+          </div>
+        </Card>
+      ))}
+      
+      {selectedRide && (
+        <PaymentModal
+          isOpen={paymentModalOpen}
+          onClose={() => setPaymentModalOpen(false)}
+          rideId={selectedRide.id}
+          amount={selectedRide.price}
+          onSuccess={handlePaymentSuccess}
+        />
       )}
     </div>
   );

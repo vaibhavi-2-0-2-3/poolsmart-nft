@@ -70,7 +70,7 @@ export function UserRegistrationModal({
     }
   };
 
-  const onSubmit = (data: FormValues) => {
+  const onSubmit = async (data: FormValues) => {
     const userData: UserProfileData = {
       username: data.username,
       fullName: data.fullName,
@@ -81,13 +81,7 @@ export function UserRegistrationModal({
       walletAddress
     };
     
-    onComplete(userData);
-    
-    toast({
-      title: "Profile created!",
-      description: "Your profile has been successfully created.",
-    });
-    
+    await onComplete(userData);
     onClose();
   };
 

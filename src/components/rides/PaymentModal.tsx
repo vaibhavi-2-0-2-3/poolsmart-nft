@@ -4,7 +4,8 @@ import { Button } from '@/components/shared/Button';
 import { Check, X, AlertCircle, Loader } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { processPayment as processBlockchainPayment } from '@/lib/web3';
-import { processPayment as processDbPayment } from '@/lib/db';
+import { processPayment as processDbPayment, bookRide } from '@/lib/firebase';
+import { useWeb3 } from '@/hooks/useWeb3';
 import {
   Dialog,
   DialogContent,
@@ -32,12 +33,29 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   const [processing, setProcessing] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
   const { toast } = useToast();
+  const { address } = useWeb3();
 
   const handlePayment = async () => {
+    if (!address) {
+      toast({
+        title: "Wallet not connected",
+        description: "Please connect your wallet to complete this payment.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setProcessing(true);
     setPaymentStatus('processing');
     
     try {
+      // First book the ride
+      const bookingSuccess = await bookRide(rideId, address);
+      
+      if (!bookingSuccess) {
+        throw new Error('Booking failed');
+      }
+      
       // Process payment on blockchain
       const blockchainSuccess = await processBlockchainPayment(rideId, amount);
       
@@ -46,7 +64,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
       }
       
       // Update local database
-      const dbSuccess = processDbPayment(rideId);
+      const dbSuccess = await processDbPayment(rideId);
       
       if (!dbSuccess) {
         throw new Error('Database update failed');

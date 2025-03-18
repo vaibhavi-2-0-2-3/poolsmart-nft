@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { startRide as startRideWeb3, endRide as endRideWeb3 } from '@/lib/web3';
 import { startRide, endRide, Ride } from '@/lib/firebase';
 import { PaymentModal } from './PaymentModal';
+import { useWeb3 } from '@/hooks/useWeb3';
 
 interface RideActionsProps {
   ride: Ride;
@@ -21,6 +22,7 @@ export const RideActions: React.FC<RideActionsProps> = ({
   const [loading, setLoading] = useState(false);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const { toast } = useToast();
+  const { address } = useWeb3();
   
   const handleStartRide = async () => {
     if (!isDriver) return;
@@ -130,7 +132,7 @@ export const RideActions: React.FC<RideActionsProps> = ({
   }
   
   // Passenger controls for completed rides that need payment
-  if (!isDriver && ride.status === 'completed' && ride.paymentStatus === 'pending') {
+  if (!isDriver && address && ride.status === 'completed' && ride.paymentStatus === 'pending') {
     return (
       <>
         <Button
