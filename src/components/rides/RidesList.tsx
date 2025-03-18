@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { getRides, Ride } from '@/lib/firebase';
 import { Card } from '@/components/shared/Card';
@@ -31,9 +32,9 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams = {}, refreshTrigger
   const fetchRides = useCallback(async () => {
     setLoading(true);
     try {
-      console.log('Fetching rides with refreshTrigger:', refreshTrigger);
+      console.log('RidesList: Fetching rides with refreshTrigger:', refreshTrigger);
       const allRides = await getRides();
-      console.log('Fetched rides:', JSON.stringify(allRides));
+      console.log('RidesList: Fetched rides count:', allRides.length);
       
       // Filter rides based on search params if provided
       let filteredRides = allRides;
@@ -52,20 +53,25 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams = {}, refreshTrigger
       
       if (searchParams.date) {
         filteredRides = filteredRides.filter(ride => {
-          const rideDate = new Date(ride.departure.time).toLocaleDateString();
-          const searchDate = new Date(searchParams.date || '').toLocaleDateString();
-          return rideDate === searchDate;
+          try {
+            const rideDate = new Date(ride.departure.time).toLocaleDateString();
+            const searchDate = new Date(searchParams.date || '').toLocaleDateString();
+            return rideDate === searchDate;
+          } catch (e) {
+            console.error('Error comparing dates:', e);
+            return false;
+          }
         });
       }
       
       if (searchParams.seats) {
-        const requiredSeats = parseInt(searchParams.seats);
+        const requiredSeats = parseInt(searchParams.seats || '1');
         filteredRides = filteredRides.filter(ride => 
           ride.seatsAvailable >= requiredSeats
         );
       }
       
-      console.log('Filtered rides:', JSON.stringify(filteredRides));
+      console.log('RidesList: Filtered rides count:', filteredRides.length);
       setRides(filteredRides);
     } catch (error) {
       console.error('Error fetching rides:', error);
@@ -79,8 +85,9 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams = {}, refreshTrigger
     }
   }, [searchParams, refreshTrigger, toast]);
   
+  // This effect runs whenever refreshTrigger changes
   useEffect(() => {
-    console.log("RidesList useEffect triggered with refreshTrigger:", refreshTrigger);
+    console.log("RidesList: useEffect triggered with refreshTrigger:", refreshTrigger);
     fetchRides();
   }, [fetchRides, refreshTrigger]);
 

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Navbar } from '@/components/layout/Navbar';
 import RidesList from '@/components/rides/RidesList';
@@ -74,17 +75,26 @@ const Rides = () => {
   };
 
   const handleCreateRideSuccess = () => {
-    // Increment to trigger refresh of RidesList
-    console.log("Ride created successfully, incrementing refresh trigger");
-    setRefreshTrigger(prevTrigger => {
-      console.log("Previous trigger:", prevTrigger, "New trigger:", prevTrigger + 1);
-      return prevTrigger + 1;
-    });
+    console.log("Rides page: Ride created successfully!");
+    
+    // Force a refresh of the rides list by updating refreshTrigger
+    const newTrigger = refreshTrigger + 1;
+    console.log(`Rides page: Updating refresh trigger from ${refreshTrigger} to ${newTrigger}`);
+    setRefreshTrigger(newTrigger);
+    
+    // Close the create ride form
+    setShowCreateRideForm(false);
+    
     toast({
       title: "Success",
       description: "Your ride has been listed successfully!",
     });
   };
+
+  // Add an effect to log whenever refreshTrigger changes
+  useEffect(() => {
+    console.log("Rides page: refreshTrigger changed to", refreshTrigger);
+  }, [refreshTrigger]);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -177,7 +187,10 @@ const Rides = () => {
                   </div>
                 </Card>
               ) : (
-                <RidesList searchParams={searchParams} refreshTrigger={refreshTrigger} />
+                <RidesList 
+                  searchParams={searchParams} 
+                  refreshTrigger={refreshTrigger} 
+                />
               )}
             </div>
 
