@@ -1,3 +1,4 @@
+
 import { initializeApp } from "firebase/app";
 import {
   getFirestore,
@@ -32,6 +33,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
+// Add the 'export' keyword to ensure the Ride interface is exported
 export interface Ride {
   id: string;
   driver: {
