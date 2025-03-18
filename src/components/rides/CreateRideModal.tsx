@@ -62,7 +62,7 @@ export const CreateRideModal: React.FC<CreateRideModalProps> = ({
         address: address || "anonymous-" + Date.now(),
       };
       
-      // Create ride object
+      // Create ride object with correct structure
       const ride: Omit<Ride, "id"> = {
         driver,
         departure: {
@@ -78,7 +78,7 @@ export const CreateRideModal: React.FC<CreateRideModalProps> = ({
         passengers: [],
       };
       
-      console.log("Submitting ride to createRide function:", ride);
+      console.log("Submitting ride to createRide function:", JSON.stringify(ride));
       
       // Save ride to database
       const rideId = await createRide(ride);

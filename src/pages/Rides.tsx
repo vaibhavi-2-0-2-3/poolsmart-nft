@@ -76,7 +76,10 @@ const Rides = () => {
   const handleCreateRideSuccess = () => {
     // Increment to trigger refresh of RidesList
     console.log("Ride created successfully, incrementing refresh trigger");
-    setRefreshTrigger(prev => prev + 1);
+    setRefreshTrigger(prevTrigger => {
+      console.log("Previous trigger:", prevTrigger, "New trigger:", prevTrigger + 1);
+      return prevTrigger + 1;
+    });
     toast({
       title: "Success",
       description: "Your ride has been listed successfully!",

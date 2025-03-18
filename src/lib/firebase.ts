@@ -174,19 +174,29 @@ export const getDriverRides = async (
 
 export const createRide = async (ride: Omit<Ride, "id">): Promise<string> => {
   try {
-    console.log("Attempting to create ride in Firebase:", ride);
+    console.log("Attempting to create ride in Firebase with data:", JSON.stringify(ride));
     
-    // Add created timestamp
-    const rideWithTimestamp = {
+    // Ensure all required fields are present
+    if (!ride.driver || !ride.departure || !ride.destination) {
+      throw new Error("Missing required ride fields");
+    }
+
+    // Create a properly formatted ride object
+    const rideToSave = {
       ...ride,
       createdAt: serverTimestamp(),
+      status: ride.status || "active",
+      seatsAvailable: ride.seatsAvailable || 1,
+      passengers: ride.passengers || [],
     };
     
-    // Try to create the document in Firestore
-    const docRef = await addDoc(collection(db, "rides"), rideWithTimestamp);
+    console.log("Formatted ride object for Firestore:", JSON.stringify(rideToSave));
+    
+    // Add the document to Firestore
+    const docRef = await addDoc(collection(db, "rides"), rideToSave);
     console.log("Successfully created ride with ID:", docRef.id);
     
-    // Verify the ride was created
+    // Verify the ride was created by fetching it back
     const rideDoc = await getDoc(docRef);
     if (!rideDoc.exists()) {
       throw new Error("Ride document was not created successfully");

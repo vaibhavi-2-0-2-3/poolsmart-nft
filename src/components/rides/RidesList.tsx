@@ -33,7 +33,7 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams = {}, refreshTrigger
     try {
       console.log('Fetching rides with refreshTrigger:', refreshTrigger);
       const allRides = await getRides();
-      console.log('Fetched rides:', allRides);
+      console.log('Fetched rides:', JSON.stringify(allRides));
       
       // Filter rides based on search params if provided
       let filteredRides = allRides;
@@ -65,6 +65,7 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams = {}, refreshTrigger
         );
       }
       
+      console.log('Filtered rides:', JSON.stringify(filteredRides));
       setRides(filteredRides);
     } catch (error) {
       console.error('Error fetching rides:', error);
