@@ -116,22 +116,26 @@ export const getRides = async (): Promise<Ride[]> => {
       const data = doc.data();
       console.log(`Processing ride document ${doc.id}:`, data);
       
-      // Convert Firestore timestamps to strings if present
+      // Create a new object with the doc ID and all fields from data
       const rideData = {
         ...data,
         id: doc.id,
-      };
+      } as Ride; // Type assertion here to treat it as a Ride
       
-      // Convert any Timestamp objects to strings
-      if (rideData.departure && rideData.departure.time instanceof Timestamp) {
-        rideData.departure.time = rideData.departure.time.toDate().toISOString();
+      // Convert Firestore timestamps to strings if present
+      if (rideData.departure && rideData.departure.time) {
+        if (rideData.departure.time instanceof Timestamp) {
+          rideData.departure.time = rideData.departure.time.toDate().toISOString();
+        }
       }
       
-      if (rideData.destination && rideData.destination.time instanceof Timestamp) {
-        rideData.destination.time = rideData.destination.time.toDate().toISOString();
+      if (rideData.destination && rideData.destination.time) {
+        if (rideData.destination.time instanceof Timestamp) {
+          rideData.destination.time = rideData.destination.time.toDate().toISOString();
+        }
       }
       
-      rides.push(rideData as Ride);
+      rides.push(rideData);
     });
     
     console.log("Processed rides:", JSON.stringify(rides));
