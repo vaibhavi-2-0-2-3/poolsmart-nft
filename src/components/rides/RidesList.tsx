@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { getRides, Ride } from '@/lib/firebase';
+import { getRides, Ride, bookRide } from '@/lib/firebase';
 import { Card } from '@/components/shared/Card';
 import { Car, Clock, MapPin, Users, DollarSign, Star } from 'lucide-react';
 import { Button } from '@/components/shared/Button';
@@ -26,6 +26,7 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams = {}, refreshTrigger
   const [loading, setLoading] = useState(true);
   const [selectedRide, setSelectedRide] = useState<Ride | null>(null);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [bookingInProgress, setBookingInProgress] = useState<string | null>(null);
   const { address, connect, userProfile } = useWeb3();
   const { toast } = useToast();
 
@@ -93,12 +94,7 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams = {}, refreshTrigger
 
   const handleStatusChange = async () => {
     // Refresh rides when status changes
-    try {
-      const allRides = await getRides();
-      setRides(allRides);
-    } catch (error) {
-      console.error('Error refreshing rides:', error);
-    }
+    fetchRides();
   };
 
   const handleConnect = async () => {
@@ -114,9 +110,55 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams = {}, refreshTrigger
     }
   };
 
-  const handleBookRide = (ride: Ride) => {
-    setSelectedRide(ride);
-    setPaymentModalOpen(true);
+  const handleBookRide = async (ride: Ride) => {
+    if (!address) {
+      toast({
+        title: "Authentication required",
+        description: "Please connect your wallet first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (address === ride.driver.address) {
+      toast({
+        title: "Cannot book your own ride",
+        description: "You cannot book a ride that you are driving.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setBookingInProgress(ride.id);
+    
+    try {
+      const success = await bookRide(ride.id, address);
+      
+      if (success) {
+        toast({
+          title: "Ride booked",
+          description: "You have successfully booked this ride. View the driver's profile for more details.",
+        });
+        
+        // Refresh the rides list
+        fetchRides();
+      } else {
+        toast({
+          title: "Booking failed",
+          description: "Failed to book this ride. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error booking ride:", error);
+      toast({
+        title: "Booking error",
+        description: "An error occurred while booking the ride. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setBookingInProgress(null);
+    }
   };
 
   const handlePaymentSuccess = () => {
@@ -155,81 +197,94 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams = {}, refreshTrigger
 
   return (
     <div className="mt-6 space-y-4">
-      {rides.map((ride) => (
-        <Card key={ride.id} className="p-6">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4">
-            <div className="flex items-center mb-4 md:mb-0">
-              <div className="flex-shrink-0 mr-4">
-                <div className="h-12 w-12 rounded-full bg-brand-100 flex items-center justify-center">
-                  <Car className="h-6 w-6 text-brand-600" />
+      {rides.map((ride) => {
+        const isUserPassenger = ride.passengers?.includes(address || '');
+        
+        return (
+          <Card key={ride.id} className="p-6">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4">
+              <div className="flex items-center mb-4 md:mb-0">
+                <div className="flex-shrink-0 mr-4">
+                  <div className="h-12 w-12 rounded-full bg-brand-100 flex items-center justify-center">
+                    <Car className="h-6 w-6 text-brand-600" />
+                  </div>
                 </div>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold">
-                  {ride.departure.location} → {ride.destination.location}
-                </h3>
-                <div className="flex items-center text-sm text-muted-foreground mt-1">
-                  <Link to={`/driver/${ride.driver.id}`} className="flex items-center hover:text-brand-600 transition-colors">
+                <div>
+                  <h3 className="text-lg font-semibold">
+                    {ride.departure.location} → {ride.destination.location}
+                  </h3>
+                  <Link to={`/driver/${ride.driver.id}`} className="flex items-center text-sm text-muted-foreground mt-1 hover:text-brand-600 transition-colors">
                     <Star className="h-3.5 w-3.5 mr-1 text-yellow-500" />
                     {ride.driver.rating.toFixed(1)} · {ride.driver.name}
                   </Link>
                 </div>
               </div>
-            </div>
 
-            <div className="flex items-center">
-              <div className="text-xl font-semibold mr-4">
-                {ride.price.toFixed(3)} ETH
+              <div className="flex items-center">
+                <div className="text-xl font-semibold mr-4">
+                  {ride.price.toFixed(3)} ETH
+                </div>
+                <RideActions 
+                  ride={ride} 
+                  isDriver={address === ride.driver.address}
+                  isPassenger={isUserPassenger}
+                  onStatusChange={handleStatusChange}
+                />
               </div>
-              <RideActions 
-                ride={ride} 
-                isDriver={address === ride.driver.address}
-                onStatusChange={handleStatusChange}
-              />
             </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-            <div className="flex items-center">
-              <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
-              <span>
-                {new Date(ride.departure.time).toLocaleString('en-US', {
-                  weekday: 'short',
-                  month: 'short',
-                  day: 'numeric',
-                  hour: 'numeric',
-                  minute: 'numeric',
-                })}
-              </span>
-            </div>
-            <div className="flex items-center">
-              <Users className="h-4 w-4 mr-2 text-muted-foreground" />
-              <span>{ride.seatsAvailable} seats available</span>
-            </div>
-            <div className="flex justify-end">
-              {!address ? (
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={handleConnect}
-                >
-                  Connect Wallet to Book
-                </Button>
-              ) : (
-                address !== ride.driver.address && ride.status === 'active' && (
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+              <div className="flex items-center">
+                <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
+                <span>
+                  {new Date(ride.departure.time).toLocaleString('en-US', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: 'numeric',
+                  })}
+                </span>
+              </div>
+              <div className="flex items-center">
+                <Users className="h-4 w-4 mr-2 text-muted-foreground" />
+                <span>{ride.seatsAvailable} seats available</span>
+              </div>
+              <div className="flex justify-end">
+                {!address ? (
                   <Button 
                     variant="outline" 
                     size="sm"
-                    onClick={() => handleBookRide(ride)}
+                    onClick={handleConnect}
                   >
-                    Book Ride
+                    Connect Wallet to Book
                   </Button>
-                )
-              )}
+                ) : (
+                  address !== ride.driver.address && ride.status === 'active' && !isUserPassenger ? (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleBookRide(ride)}
+                      disabled={bookingInProgress === ride.id}
+                    >
+                      {bookingInProgress === ride.id ? 'Booking...' : 'Book Ride'}
+                    </Button>
+                  ) : isUserPassenger ? (
+                    <Link to={`/driver/${ride.driver.id}`}>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                      >
+                        View Driver
+                      </Button>
+                    </Link>
+                  ) : null
+                )}
+              </div>
             </div>
-          </div>
-        </Card>
-      ))}
+          </Card>
+        );
+      })}
       
       {selectedRide && (
         <PaymentModal

@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/shared/Button';
-import { Play, Square, CreditCard } from 'lucide-react';
+import { Play, Square, CreditCard, ThumbsUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { startRide as startRideWeb3, endRide as endRideWeb3 } from '@/lib/web3';
 import { startRide, endRide, Ride } from '@/lib/firebase';
@@ -11,12 +11,14 @@ import { useWeb3 } from '@/hooks/useWeb3';
 interface RideActionsProps {
   ride: Ride;
   isDriver: boolean;
+  isPassenger?: boolean;
   onStatusChange: () => void;
 }
 
 export const RideActions: React.FC<RideActionsProps> = ({
   ride,
   isDriver,
+  isPassenger = false,
   onStatusChange,
 }) => {
   const [loading, setLoading] = useState(false);
@@ -102,7 +104,7 @@ export const RideActions: React.FC<RideActionsProps> = ({
   
   // Driver controls for active rides
   if (isDriver) {
-    if (ride.status === 'active') {
+    if (ride.status === 'active' && (ride.passengers?.length || 0) > 0) {
       return (
         <Button
           variant="primary"
@@ -131,8 +133,20 @@ export const RideActions: React.FC<RideActionsProps> = ({
     }
   }
   
+  // Passenger controls for booked rides
+  if (isPassenger && !isDriver) {
+    if (ride.status === 'active') {
+      return (
+        <div className="flex items-center">
+          <div className="h-2 w-2 rounded-full mr-2 bg-green-500" />
+          <span className="text-sm">Booked</span>
+        </div>
+      );
+    }
+  }
+  
   // Passenger controls for completed rides that need payment
-  if (!isDriver && address && ride.status === 'completed' && ride.paymentStatus === 'pending') {
+  if (!isDriver && isPassenger && address && ride.status === 'completed' && ride.paymentStatus === 'pending') {
     return (
       <>
         <Button
@@ -170,8 +184,8 @@ export const RideActions: React.FC<RideActionsProps> = ({
           ? 'Completed'
           : ride.status === 'in_progress'
           ? 'In Progress'
-          : ride.status === 'completed'
-          ? 'Awaiting Payment'
+          : ride.status === 'active' && (ride.passengers?.length || 0) > 0
+          ? 'Ready to Start'
           : 'Active'}
       </span>
     </div>

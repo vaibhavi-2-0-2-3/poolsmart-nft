@@ -83,6 +83,25 @@ export interface UserProfile {
   totalRides?: number;
 }
 
+export interface Driver {
+  id: string;
+  name: string;
+  bio?: string;
+  avatar?: string;
+  rating: number;
+  reviewCount: number;
+  completedRides: number;
+  joinedDate: string;
+  verified: boolean;
+  address: string;
+  car?: {
+    model: string;
+    year: string;
+    color: string;
+    licensePlate?: string;
+  };
+}
+
 export const migrateLocalStorageToFirebase = async () => {
   try {
     const localRides = localStorage.getItem("rides");
@@ -336,6 +355,10 @@ export const bookRide = async (
         return false; // Already booked
       }
 
+      if (rideData.seatsAvailable <= 0) {
+        return false; // No seats available
+      }
+
       passengers.push(passengerAddress);
       const seatsAvailable = rideData.seatsAvailable - 1;
 
@@ -359,6 +382,11 @@ export const bookRide = async (
           if (passengers.includes(passengerAddress)) {
             return ride; // Already booked
           }
+          
+          if (ride.seatsAvailable <= 0) {
+            return ride; // No seats available
+          }
+          
           passengers.push(passengerAddress);
           return {
             ...ride,
@@ -557,6 +585,78 @@ export const updateUserProfile = async (
   }
 };
 
+export const getDriverById = async (driverId: string): Promise<Driver | null> => {
+  try {
+    // First check if it's a user profile with isDriver=true
+    const usersCollection = collection(db, "users");
+    const userQuery = query(usersCollection, where("id", "==", driverId));
+    const userQuerySnapshot = await getDocs(userQuery);
+    
+    if (!userQuerySnapshot.empty) {
+      const userDoc = userQuerySnapshot.docs[0];
+      const userData = userDoc.data() as UserProfile;
+      
+      if (userData.isDriver) {
+        // Convert UserProfile to Driver
+        return {
+          id: userData.id,
+          name: userData.fullName || userData.username,
+          bio: userData.bio || '',
+          avatar: userData.avatar,
+          rating: userData.rating || 4.5,
+          reviewCount: 5, // Default value
+          completedRides: userData.totalRides || 0,
+          joinedDate: new Date(userData.createdAt).toISOString(),
+          verified: true,
+          address: userData.walletAddress,
+          car: userData.carDetails || undefined,
+        };
+      }
+    }
+    
+    // If not found in users, check drivers collection or use mock data
+    const driverRef = doc(db, "drivers", driverId);
+    const driverSnap = await getDoc(driverRef);
+    
+    if (driverSnap.exists()) {
+      return driverSnap.data() as Driver;
+    }
+    
+    // Fallback to mock data
+    return getMockDriverById(driverId);
+    
+  } catch (error) {
+    console.error("Error getting driver from Firebase:", error);
+    
+    // Fallback to mock data
+    return getMockDriverById(driverId);
+  }
+};
+
+// Mock data for development
+const getMockDriverById = (driverId: string): Driver => {
+  // Create some mock driver data based on the ID
+  const idNumber = parseInt(driverId.replace(/\D/g, '')) || 1;
+  
+  return {
+    id: driverId,
+    name: `Driver ${idNumber}`,
+    bio: "Experienced driver with a focus on safety and comfort. I enjoy meeting new people and making your journey pleasant.",
+    rating: 4.5 + (idNumber % 10) / 20,
+    reviewCount: 5 + idNumber,
+    completedRides: 10 + idNumber * 2,
+    joinedDate: new Date(2023, 0, idNumber).toISOString(),
+    verified: true,
+    address: `0x${Array(40).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join('')}`,
+    car: {
+      model: ["Toyota Camry", "Honda Accord", "Tesla Model 3", "Ford Fusion", "Nissan Altima"][idNumber % 5],
+      year: `${2018 + idNumber % 5}`,
+      color: ["White", "Black", "Silver", "Blue", "Red"][idNumber % 5],
+      licensePlate: `ABC${1000 + idNumber}`,
+    },
+  };
+};
+
 export { addDoc as addRide };
 
 export default {
@@ -573,4 +673,5 @@ export default {
   createUserProfile,
   getUserProfile,
   updateUserProfile,
+  getDriverById,
 };
