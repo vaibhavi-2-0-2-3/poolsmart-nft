@@ -4,11 +4,15 @@ import { Link } from 'react-router-dom';
 import { Card } from '@/components/shared/Card';
 import { Button } from '@/components/shared/Button';
 import { MapPin, Calendar, Clock } from 'lucide-react';
-import { Ride } from '@/lib/db';
+import { Ride as DbRide } from '@/lib/db';
+import { Ride as FirebaseRide } from '@/lib/firebase';
+
+// Create a type that accepts either Firebase or DB ride type
+type RideType = DbRide | FirebaseRide;
 
 interface DriverRidesListProps {
   driverName: string;
-  rides: Ride[];
+  rides: RideType[];
 }
 
 export const DriverRidesList: React.FC<DriverRidesListProps> = ({ driverName, rides }) => {

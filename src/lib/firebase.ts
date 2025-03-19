@@ -1,4 +1,3 @@
-
 import { initializeApp } from "firebase/app";
 import {
   getFirestore,
@@ -43,6 +42,7 @@ export interface Ride {
     rating: number;
     avatar?: string;
     address: string;
+    reviewCount?: number; // Add reviewCount to match db.ts Driver interface
   };
   departure: {
     location: string;
@@ -59,7 +59,7 @@ export interface Ride {
   paymentStatus?: "pending" | "processing" | "completed" | "failed";
   startedAt?: string;
   endedAt?: string;
-  verified?: boolean; // Added verified property to match db.ts
+  verified: boolean; // Changed from optional to required to match db.ts
 }
 
 export interface UserProfile {
@@ -136,11 +136,31 @@ export const getRides = async (): Promise<Ride[]> => {
       const data = doc.data();
       console.log(`Processing ride document ${doc.id}:`, data);
 
-      // Convert Firestore timestamps to strings if present
+      // Make sure we have a properly structured ride object with all required fields
       const rideData = {
         ...data,
         id: doc.id,
-        verified: true // Set a default value to match the db.ts interface
+        verified: true,
+        // Ensure driver has reviewCount property
+        driver: {
+          ...(data.driver || {}),
+          reviewCount: data.driver?.reviewCount || 0
+        },
+        // Ensure departure property
+        departure: {
+          ...(data.departure || {}),
+          location: data.departure?.location || '',
+          time: data.departure?.time || new Date().toISOString()
+        },
+        // Ensure destination property
+        destination: {
+          ...(data.destination || {}),
+          location: data.destination?.location || ''
+        },
+        // Ensure other required properties
+        price: data.price || 0,
+        seatsAvailable: data.seatsAvailable || 0,
+        status: data.status || 'active'
       };
 
       // Convert any Timestamp objects to strings
@@ -181,8 +201,30 @@ export const getUserRides = async (userAddress: string): Promise<Ride[]> => {
     const querySnapshot = await getDocs(q);
     const rides: Ride[] = [];
     querySnapshot.forEach((doc) => {
-      const rideData = doc.data() as Omit<Ride, "id">;
-      rides.push({ id: doc.id, ...rideData, verified: true });
+      const data = doc.data();
+      // Ensure we have a complete ride object with all required fields
+      const rideData = {
+        ...data,
+        id: doc.id,
+        verified: true,
+        driver: {
+          ...(data.driver || {}),
+          reviewCount: data.driver?.reviewCount || 0
+        },
+        departure: {
+          ...(data.departure || {}),
+          location: data.departure?.location || '',
+          time: data.departure?.time || new Date().toISOString()
+        },
+        destination: {
+          ...(data.destination || {}),
+          location: data.destination?.location || ''
+        },
+        price: data.price || 0,
+        seatsAvailable: data.seatsAvailable || 0,
+        status: data.status || 'active'
+      };
+      rides.push(rideData as Ride);
     });
     return rides;
   } catch (error) {
@@ -209,8 +251,30 @@ export const getDriverRides = async (
     const querySnapshot = await getDocs(q);
     const rides: Ride[] = [];
     querySnapshot.forEach((doc) => {
-      const rideData = doc.data() as Omit<Ride, "id">;
-      rides.push({ id: doc.id, ...rideData, verified: true });
+      const data = doc.data();
+      // Ensure we have a complete ride object with all required fields
+      const rideData = {
+        ...data,
+        id: doc.id,
+        verified: true,
+        driver: {
+          ...(data.driver || {}),
+          reviewCount: data.driver?.reviewCount || 0
+        },
+        departure: {
+          ...(data.departure || {}),
+          location: data.departure?.location || '',
+          time: data.departure?.time || new Date().toISOString()
+        },
+        destination: {
+          ...(data.destination || {}),
+          location: data.destination?.location || ''
+        },
+        price: data.price || 0,
+        seatsAvailable: data.seatsAvailable || 0,
+        status: data.status || 'active'
+      };
+      rides.push(rideData as Ride);
     });
     return rides;
   } catch (error) {
@@ -259,6 +323,7 @@ export const createRide = async (ride: Omit<Ride, "id">): Promise<string> => {
         rating: ride.driver.rating || 0,
         address: ride.driver.address,
         avatar: ride.driver.avatar,
+        reviewCount: ride.driver.reviewCount || 0, // Add reviewCount
       },
       departure: {
         location: ride.departure.location,
@@ -272,7 +337,7 @@ export const createRide = async (ride: Omit<Ride, "id">): Promise<string> => {
       seatsAvailable: Number(ride.seatsAvailable || 1),
       status: ride.status || "active",
       passengers: ride.passengers || [],
-      verified: true, // Added to match db.ts interface
+      verified: true,
       createdAt: serverTimestamp(),
     };
 

@@ -15,7 +15,7 @@ import { DriverReviews } from '@/components/driver/DriverReviews';
 import { useWeb3 } from '@/hooks/useWeb3';
 import { useToast } from '@/hooks/use-toast';
 
-// We're removing the import from db.ts since we're using the Firebase type
+// We're explicitly removing the import from db.ts to avoid type conflicts
 // import { Ride as DbRide } from '@/lib/db';
 
 const DriverProfile = () => {
