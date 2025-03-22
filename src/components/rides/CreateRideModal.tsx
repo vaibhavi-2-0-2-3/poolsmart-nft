@@ -54,12 +54,14 @@ export const CreateRideModal: React.FC<CreateRideModalProps> = ({
         rating: userProfile.rating || 0,
         avatar: userProfile.avatar,
         address: address,
+        reviewCount: userProfile.reviewCount || 0, // Add reviewCount property
       } : {
         id: "temp-" + Date.now().toString(),
         name: formData.driverName || "Anonymous Driver",
         rating: 0,
         avatar: "",
         address: address || "anonymous-" + Date.now(),
+        reviewCount: 0, // Add reviewCount property
       };
       
       // Create ride object with correct structure
@@ -76,6 +78,7 @@ export const CreateRideModal: React.FC<CreateRideModalProps> = ({
         seatsAvailable: parseInt(formData.seatsAvailable),
         status: "active",
         passengers: [],
+        verified: true, // Add the required verified property
       };
       
       console.log("Submitting ride to createRide function:", JSON.stringify(ride));
