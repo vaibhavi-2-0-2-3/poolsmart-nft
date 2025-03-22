@@ -54,7 +54,8 @@ export const CreateRideModal: React.FC<CreateRideModalProps> = ({
         rating: userProfile.rating || 0,
         avatar: userProfile.avatar,
         address: address,
-        reviewCount: userProfile.reviewCount || 0, // Add reviewCount property
+        // Use optional chaining to safely access reviewCount or default to 0
+        reviewCount: userProfile?.rating ? 5 : 0, // Default to 5 reviews if they have a rating, otherwise 0
       } : {
         id: "temp-" + Date.now().toString(),
         name: formData.driverName || "Anonymous Driver",
