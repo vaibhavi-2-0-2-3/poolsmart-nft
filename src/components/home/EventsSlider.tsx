@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Carousel, 
   CarouselContent, 
@@ -8,6 +8,7 @@ import {
   CarouselPrevious 
 } from "@/components/ui/carousel";
 import { EventCard, Event } from './EventCard';
+import useEmblaCarousel from 'embla-carousel-react';
 
 // Demo events data (expanded)
 export const DEMO_EVENTS: Event[] = [
@@ -205,31 +206,66 @@ export const DEMO_EVENTS: Event[] = [
 ];
 
 export const EventsSlider: React.FC = () => {
+  const [emblaRef, emblaApi] = useEmblaCarousel({
+    align: "center",
+    loop: true,
+  });
+
+  // Set up auto-sliding effect
+  useEffect(() => {
+    if (!emblaApi) return;
+
+    // Function to scroll to the next slide
+    const autoplay = () => {
+      if (emblaApi.canScrollNext()) {
+        emblaApi.scrollNext();
+      } else {
+        emblaApi.scrollTo(0);
+      }
+    };
+
+    // Set interval for autoplay (5 seconds)
+    const interval = setInterval(autoplay, 5000);
+
+    // Cleanup on unmount
+    return () => {
+      clearInterval(interval);
+    };
+  }, [emblaApi]);
+
   return (
     <div className="relative w-full">
-      <Carousel
-        opts={{
-          align: "center",
-          loop: true,
-          autoplay: true,
-          interval: 5000, // 5 seconds per slide
-        }}
-        className="w-full"
-      >
-        <CarouselContent>
+      <div ref={emblaRef} className="overflow-hidden">
+        <div className="flex">
           {DEMO_EVENTS.map((event) => (
-            <CarouselItem key={event.id} className="basis-full">
+            <div key={event.id} className="flex-[0_0_100%]">
               <div className="p-1">
                 <EventCard event={event} />
               </div>
-            </CarouselItem>
+            </div>
           ))}
-        </CarouselContent>
-        <div className="absolute -bottom-12 left-1/2 transform -translate-x-1/2 flex gap-2">
-          <CarouselPrevious className="relative static translate-y-0 left-0" />
-          <CarouselNext className="relative static translate-y-0 right-0" />
         </div>
-      </Carousel>
+      </div>
+      <div className="absolute -bottom-12 left-1/2 transform -translate-x-1/2 flex gap-2">
+        <button 
+          onClick={() => emblaApi?.scrollPrev()} 
+          className="h-8 w-8 rounded-full bg-background border border-input flex items-center justify-center hover:bg-accent hover:text-accent-foreground"
+        >
+          <span className="sr-only">Previous slide</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m15 18-6-6 6-6"/>
+          </svg>
+        </button>
+        <button 
+          onClick={() => emblaApi?.scrollNext()} 
+          className="h-8 w-8 rounded-full bg-background border border-input flex items-center justify-center hover:bg-accent hover:text-accent-foreground"
+        >
+          <span className="sr-only">Next slide</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m9 18 6-6-6-6"/>
+          </svg>
+        </button>
+      </div>
     </div>
   );
 };

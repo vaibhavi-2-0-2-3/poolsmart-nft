@@ -16,6 +16,7 @@ import FAQ from "./pages/FAQ";
 import Documentation from "./pages/Documentation";
 import DAOGovernance from "./pages/DAOGovernance";
 import EventDetails from "./pages/EventDetails";
+import Events from "./pages/Events";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +32,7 @@ const App = () => (
             <Route path="/rides" element={<Rides />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/driver/:driverId" element={<DriverProfile />} />
+            <Route path="/events" element={<Events />} />
             <Route path="/events/:eventId" element={<EventDetails />} />
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
             <Route path="/terms-of-service" element={<TermsOfService />} />

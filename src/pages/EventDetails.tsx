@@ -1,17 +1,36 @@
 
-import React, { useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { Button } from '@/components/shared/Button';
 import { Calendar, MapPin, User, Clock, ArrowLeft } from 'lucide-react';
-import { DEMO_EVENTS } from '@/components/home/EventsSlider';
+import { getEventById } from '@/lib/eventsApi';
+import { Event } from '@/lib/eventsApi';
+import { Skeleton } from '@/components/ui/skeleton';
+import { toast } from '@/components/ui/use-toast';
 
 const EventDetails = () => {
   const { eventId } = useParams<{ eventId: string }>();
+  const [event, setEvent] = useState<Event | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   
-  const event = useMemo(() => {
-    return DEMO_EVENTS.find(event => event.id === eventId);
+  useEffect(() => {
+    const fetchEvent = async () => {
+      try {
+        setIsLoading(true);
+        if (eventId) {
+          const eventData = await getEventById(eventId);
+          setEvent(eventData);
+        }
+      } catch (error) {
+        console.error("Error fetching event details:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchEvent();
   }, [eventId]);
   
   const formatDate = (dateString: string) => {
@@ -26,6 +45,47 @@ const EventDetails = () => {
     });
   };
 
+  const handleRegister = () => {
+    toast({
+      title: "Registration Successful!",
+      description: "You've successfully registered for this event.",
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <main className="flex-grow container mx-auto px-4 py-12">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex items-center mb-8">
+              <Link to="/events">
+                <Button variant="outline" size="sm" iconLeft={<ArrowLeft className="h-4 w-4" />}>
+                  Back to Events
+                </Button>
+              </Link>
+            </div>
+            
+            <Skeleton className="w-full h-64 rounded-xl mb-8" />
+            
+            <Skeleton className="w-3/4 h-10 mb-4" />
+            
+            <div className="flex flex-col gap-4 md:flex-row md:gap-8 mt-6 mb-8">
+              <Skeleton className="w-48 h-6" />
+              <Skeleton className="w-48 h-6" />
+              <Skeleton className="w-48 h-6" />
+            </div>
+            
+            <Skeleton className="w-full h-48 rounded-lg mb-8" />
+            
+            <Skeleton className="w-full h-24 rounded-lg" />
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
   if (!event) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -33,9 +93,9 @@ const EventDetails = () => {
         <main className="flex-grow container mx-auto px-4 py-12">
           <div className="max-w-4xl mx-auto">
             <div className="flex items-center mb-8">
-              <Link to="/">
+              <Link to="/events">
                 <Button variant="outline" size="sm" iconLeft={<ArrowLeft className="h-4 w-4" />}>
-                  Back to Home
+                  Back to Events
                 </Button>
               </Link>
             </div>
@@ -58,9 +118,9 @@ const EventDetails = () => {
       <main className="flex-grow container mx-auto px-4 py-12">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center mb-8">
-            <Link to="/">
+            <Link to="/events">
               <Button variant="outline" size="sm" iconLeft={<ArrowLeft className="h-4 w-4" />}>
-                Back to Home
+                Back to Events
               </Button>
             </Link>
           </div>
@@ -116,7 +176,7 @@ const EventDetails = () => {
                 ) : null}
               </div>
               
-              <Button variant="primary" size="lg">
+              <Button variant="primary" size="lg" onClick={handleRegister}>
                 Register for Event
               </Button>
             </div>
