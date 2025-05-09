@@ -9,6 +9,7 @@ import { getEventById } from '@/lib/eventsApi';
 import { Event } from '@/lib/eventsApi';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/components/ui/use-toast';
+import { ChatDrawer } from '@/components/chat/ChatDrawer';
 
 const EventDetails = () => {
   const { eventId } = useParams<{ eventId: string }>();
@@ -164,21 +165,32 @@ const EventDetails = () => {
               <p className="text-muted-foreground whitespace-pre-line">{event.description}</p>
             </div>
             
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 p-6 bg-muted rounded-lg">
-              <div>
-                <div className="text-lg font-medium">
-                  {event.price ? `${event.price} ETH` : 'Free'}
-                </div>
-                {event.price ? (
-                  <div className="text-sm text-muted-foreground">
-                    (Approximately ${(event.price * 2000).toFixed(2)} USD)
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 p-6 bg-muted rounded-lg">
+                <div>
+                  <div className="text-lg font-medium">
+                    {event.price ? `${event.price} ETH` : 'Free'}
                   </div>
-                ) : null}
+                  {event.price ? (
+                    <div className="text-sm text-muted-foreground">
+                      (Approximately ${(event.price * 2000).toFixed(2)} USD)
+                    </div>
+                  ) : null}
+                </div>
+                
+                <Button variant="primary" size="lg" onClick={handleRegister}>
+                  Register for Event
+                </Button>
               </div>
               
-              <Button variant="primary" size="lg" onClick={handleRegister}>
-                Register for Event
-              </Button>
+              <div className="p-6 bg-brand-50 border border-brand-100 rounded-lg">
+                <h3 className="text-lg font-semibold mb-3 text-brand-800">Carpooling Options</h3>
+                <p className="text-sm text-brand-700 mb-4">
+                  Save money and reduce your carbon footprint by sharing rides with others attending this event.
+                </p>
+                
+                <ChatDrawer eventId={event.id} eventTitle={event.title} />
+              </div>
             </div>
           </div>
         </div>

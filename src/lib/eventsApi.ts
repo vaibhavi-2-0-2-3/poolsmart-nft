@@ -1,6 +1,6 @@
 
 import { collection, getDocs, getDoc, doc, query, where, addDoc } from "firebase/firestore";
-import { db } from "./firebase";
+import { db } from "@/lib/firebase";
 import { DEMO_EVENTS } from "@/components/home/EventsSlider";
 
 export interface Event {
