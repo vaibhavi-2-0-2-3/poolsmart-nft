@@ -30,7 +30,10 @@ export const initializeEventsInFirebase = async (): Promise<void> => {
       // Add demo events to Firebase
       for (const event of DEMO_EVENTS) {
         const { id, ...eventData } = event;
-        await addDoc(collection(db, "events"), eventData);
+        await addDoc(collection(db, "events"), {
+          ...eventData,
+          attendees: [] // Initialize with empty attendees array
+        });
       }
       
       console.log("Successfully initialized events in Firebase");
@@ -137,6 +140,21 @@ export const registerForEvent = async (eventId: string, userAddress: string): Pr
       await updateDoc(eventRef, { attendees });
       
       console.log("User successfully registered for event");
+      console.log("Updated attendees list:", attendees);
+      return true;
+    }
+    
+    // If the event doesn't exist in Firebase but exists in demo data
+    // We should create the event in Firebase first
+    const demoEvent = DEMO_EVENTS.find(event => event.id === eventId);
+    if (demoEvent) {
+      const { id, ...eventData } = demoEvent;
+      const newEventRef = doc(db, "events", eventId);
+      await updateDoc(newEventRef, {
+        ...eventData,
+        attendees: [userAddress]
+      });
+      console.log("Created new event in Firebase and registered user");
       return true;
     }
     
@@ -166,6 +184,7 @@ export const getUserRegisteredEvents = async (userAddress: string): Promise<Even
       
       // Check if the user is in the attendees list
       if (attendees.includes(userAddress)) {
+        console.log(`User ${userAddress} is registered for event ${doc.id}`);
         registeredEvents.push({
           id: doc.id,
           title: data.title,

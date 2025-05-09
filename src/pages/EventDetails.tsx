@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { Button } from '@/components/shared/Button';
@@ -7,7 +7,7 @@ import { Calendar, MapPin, User, ArrowLeft } from 'lucide-react';
 import { getEventById, registerForEvent } from '@/lib/eventsApi';
 import { Event } from '@/lib/eventsApi';
 import { Skeleton } from '@/components/ui/skeleton';
-import { toast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { ChatDrawer } from '@/components/chat/ChatDrawer';
 import { useWeb3 } from '@/hooks/useWeb3';
 
@@ -17,6 +17,8 @@ const EventDetails = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isRegistering, setIsRegistering] = useState(false);
   const { address, isConnected } = useWeb3();
+  const { toast } = useToast();
+  const navigate = useNavigate();
   
   useEffect(() => {
     const fetchEvent = async () => {
@@ -62,6 +64,7 @@ const EventDetails = () => {
     
     try {
       setIsRegistering(true);
+      console.log("Attempting to register user:", address, "for event:", eventId);
       const success = await registerForEvent(eventId, address);
       
       if (success) {
@@ -73,6 +76,11 @@ const EventDetails = () => {
         // Refresh event data
         const updatedEvent = await getEventById(eventId);
         setEvent(updatedEvent);
+        
+        // Redirect to dashboard
+        setTimeout(() => {
+          navigate('/dashboard');
+        }, 1500);
       } else {
         toast({
           title: "Already Registered",
@@ -97,37 +105,7 @@ const EventDetails = () => {
   };
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <Navbar />
-        <main className="flex-grow container mx-auto px-4 py-12">
-          <div className="max-w-4xl mx-auto">
-            <div className="flex items-center mb-8">
-              <Link to="/events">
-                <Button variant="outline" size="sm" iconLeft={<ArrowLeft className="h-4 w-4" />}>
-                  Back to Events
-                </Button>
-              </Link>
-            </div>
-            
-            <Skeleton className="w-full h-64 rounded-xl mb-8" />
-            
-            <Skeleton className="w-3/4 h-10 mb-4" />
-            
-            <div className="flex flex-col gap-4 md:flex-row md:gap-8 mt-6 mb-8">
-              <Skeleton className="w-48 h-6" />
-              <Skeleton className="w-48 h-6" />
-              <Skeleton className="w-48 h-6" />
-            </div>
-            
-            <Skeleton className="w-full h-48 rounded-lg mb-8" />
-            
-            <Skeleton className="w-full h-24 rounded-lg" />
-          </div>
-        </main>
-        <Footer />
-      </div>
-    );
+    return null;
   }
 
   if (!event) {
@@ -222,9 +200,18 @@ const EventDetails = () => {
                 </div>
                 
                 {isUserRegistered() ? (
-                  <Button variant="secondary" size="lg" disabled>
-                    Already Registered
-                  </Button>
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <Button variant="secondary" size="lg" disabled>
+                      Already Registered
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="lg" 
+                      onClick={() => navigate('/dashboard')}
+                    >
+                      View in Dashboard
+                    </Button>
+                  </div>
                 ) : (
                   <Button 
                     variant="primary" 

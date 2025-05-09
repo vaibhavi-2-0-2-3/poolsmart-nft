@@ -31,6 +31,7 @@ export function Navbar() {
   const closeMenu = () => setIsMenuOpen(false);
   
   const handleDisconnect = () => {
+    console.log("Disconnecting wallet in Navbar");
     disconnect();
     setIsDropdownOpen(false);
   };

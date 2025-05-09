@@ -46,10 +46,12 @@ const Dashboard = () => {
       console.log("Fetched registered events:", userEvents);
       setRegisteredEvents(userEvents);
       
-      toast({
-        title: "Dashboard loaded",
-        description: `Found ${userEvents.length} registered events`,
-      });
+      if (userEvents.length > 0) {
+        toast({
+          title: "Dashboard loaded",
+          description: `Found ${userEvents.length} registered events`,
+        });
+      }
     } catch (error) {
       console.error("Error loading user data:", error);
       toast({
@@ -59,6 +61,20 @@ const Dashboard = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+  
+  // Manual refresh function that can be called after event registration
+  const refreshRegisteredEvents = async () => {
+    if (address) {
+      try {
+        console.log("Manually refreshing registered events for:", address);
+        const userEvents = await getUserRegisteredEvents(address);
+        console.log("Refreshed events:", userEvents);
+        setRegisteredEvents(userEvents);
+      } catch (error) {
+        console.error("Error refreshing events:", error);
+      }
     }
   };
   
@@ -139,6 +155,12 @@ const Dashboard = () => {
                   Offer a New Ride
                 </Button>
               </Link>
+              <Button
+                variant="outline"
+                onClick={refreshRegisteredEvents}
+              >
+                Refresh Events
+              </Button>
             </div>
           </div>
           
@@ -150,7 +172,7 @@ const Dashboard = () => {
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground">Wallet</h3>
-                  <p className="text-lg font-semibold">{address.slice(0, 6)}...{address.slice(-4)}</p>
+                  <p className="text-lg font-semibold">{address?.slice(0, 6)}...{address?.slice(-4)}</p>
                 </div>
               </div>
             </Card>
@@ -196,7 +218,7 @@ const Dashboard = () => {
             <TabsList className="mb-6">
               <TabsTrigger value="bookings">My Bookings</TabsTrigger>
               <TabsTrigger value="offered">Offered Rides</TabsTrigger>
-              <TabsTrigger value="events">Registered Events</TabsTrigger>
+              <TabsTrigger value="events">Registered Events ({registeredEvents.length})</TabsTrigger>
             </TabsList>
             
             <TabsContent value="bookings">
