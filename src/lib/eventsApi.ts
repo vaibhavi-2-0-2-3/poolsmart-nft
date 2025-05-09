@@ -1,3 +1,4 @@
+
 import { collection, getDocs, getDoc, doc, query, where, addDoc, updateDoc } from "firebase/firestore";
 import { getFirestore } from "firebase/firestore";
 import { DEMO_EVENTS } from "@/components/home/EventsSlider";
@@ -115,6 +116,7 @@ export const getEventById = async (eventId: string): Promise<Event | null> => {
 // Register for an event
 export const registerForEvent = async (eventId: string, userAddress: string): Promise<boolean> => {
   try {
+    console.log(`Registering user ${userAddress} for event ${eventId}`);
     const eventRef = doc(db, "events", eventId);
     const eventDoc = await getDoc(eventRef);
     

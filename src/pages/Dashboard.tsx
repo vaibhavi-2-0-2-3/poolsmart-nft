@@ -8,6 +8,7 @@ import { Calendar, Clock, MapPin, Users, Star, Wallet, Car } from 'lucide-react'
 import { useWeb3 } from '@/hooks/useWeb3';
 import { Ride, getUserRides, getRides } from '@/lib/firebase';
 import { Event, getUserRegisteredEvents } from '@/lib/eventsApi';
+import { useToast } from '@/hooks/use-toast';
 
 const Dashboard = () => {
   const { address, connect, userProfile } = useWeb3();
@@ -16,6 +17,7 @@ const Dashboard = () => {
   const [offeredRides, setOfferedRides] = useState<Ride[]>([]);
   const [registeredEvents, setRegisteredEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
   
   useEffect(() => {
     if (address) {
@@ -39,10 +41,22 @@ const Dashboard = () => {
       setOfferedRides(userOfferedRides);
 
       // Get registered events
+      console.log("Fetching registered events for address:", userAddress);
       const userEvents = await getUserRegisteredEvents(userAddress);
+      console.log("Fetched registered events:", userEvents);
       setRegisteredEvents(userEvents);
+      
+      toast({
+        title: "Dashboard loaded",
+        description: `Found ${userEvents.length} registered events`,
+      });
     } catch (error) {
       console.error("Error loading user data:", error);
+      toast({
+        title: "Error loading data",
+        description: "Could not load your dashboard data",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
