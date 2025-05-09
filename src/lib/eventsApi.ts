@@ -1,6 +1,6 @@
 
 import { collection, getDocs, getDoc, doc, query, where, addDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { getFirestore } from "firebase/firestore";
 import { DEMO_EVENTS } from "@/components/home/EventsSlider";
 
 export interface Event {
@@ -12,7 +12,11 @@ export interface Event {
   imageUrl?: string;
   organizerName: string;
   price?: number;
+  attendees?: string[]; // Add attendees array to track who registered
 }
+
+// Get Firestore instance
+const db = getFirestore();
 
 // Initialize events in Firebase if they don't exist
 export const initializeEventsInFirebase = async (): Promise<void> => {
@@ -60,6 +64,7 @@ export const getAllEvents = async (): Promise<Event[]> => {
         imageUrl: data.imageUrl,
         organizerName: data.organizerName,
         price: data.price,
+        attendees: data.attendees || [],
       });
     });
     
@@ -88,6 +93,7 @@ export const getEventById = async (eventId: string): Promise<Event | null> => {
         imageUrl: data.imageUrl,
         organizerName: data.organizerName,
         price: data.price,
+        attendees: data.attendees || [],
       };
     }
     
@@ -104,6 +110,39 @@ export const getEventById = async (eventId: string): Promise<Event | null> => {
     // Fallback to demo data
     const demoEvent = DEMO_EVENTS.find(event => event.id === eventId);
     return demoEvent || null;
+  }
+};
+
+// Register for an event
+export const registerForEvent = async (eventId: string, userAddress: string): Promise<boolean> => {
+  try {
+    const eventRef = doc(db, "events", eventId);
+    const eventDoc = await getDoc(eventRef);
+    
+    if (eventDoc.exists()) {
+      const eventData = eventDoc.data();
+      const attendees = eventData.attendees || [];
+      
+      // Check if user is already registered
+      if (attendees.includes(userAddress)) {
+        console.log("User already registered for this event");
+        return false;
+      }
+      
+      // Add user to attendees list
+      attendees.push(userAddress);
+      await addDoc(collection(db, "events", eventId, "attendees"), {
+        userAddress,
+        registeredAt: new Date().toISOString()
+      });
+      
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error("Error registering for event:", error);
+    return false;
   }
 };
 

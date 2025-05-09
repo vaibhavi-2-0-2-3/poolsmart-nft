@@ -5,16 +5,19 @@ import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { Button } from '@/components/shared/Button';
 import { Calendar, MapPin, User, Clock, ArrowLeft } from 'lucide-react';
-import { getEventById } from '@/lib/eventsApi';
+import { getEventById, registerForEvent } from '@/lib/eventsApi';
 import { Event } from '@/lib/eventsApi';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/components/ui/use-toast';
 import { ChatDrawer } from '@/components/chat/ChatDrawer';
+import { useWeb3 } from '@/hooks/useWeb3';
 
 const EventDetails = () => {
   const { eventId } = useParams<{ eventId: string }>();
   const [event, setEvent] = useState<Event | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRegistering, setIsRegistering] = useState(false);
+  const { address, isConnected } = useWeb3();
   
   useEffect(() => {
     const fetchEvent = async () => {
@@ -46,11 +49,52 @@ const EventDetails = () => {
     });
   };
 
-  const handleRegister = () => {
-    toast({
-      title: "Registration Successful!",
-      description: "You've successfully registered for this event.",
-    });
+  const handleRegister = async () => {
+    if (!isConnected) {
+      toast({
+        title: "Wallet not connected",
+        description: "Please connect your wallet to register for this event.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (!eventId || !address) return;
+    
+    try {
+      setIsRegistering(true);
+      const success = await registerForEvent(eventId, address);
+      
+      if (success) {
+        toast({
+          title: "Registration Successful!",
+          description: "You've successfully registered for this event.",
+        });
+        
+        // Refresh event data
+        const updatedEvent = await getEventById(eventId);
+        setEvent(updatedEvent);
+      } else {
+        toast({
+          title: "Already Registered",
+          description: "You are already registered for this event.",
+        });
+      }
+    } catch (error) {
+      console.error("Error registering for event:", error);
+      toast({
+        title: "Registration Failed",
+        description: "There was an error registering for this event. Please try again later.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsRegistering(false);
+    }
+  };
+
+  const isUserRegistered = () => {
+    if (!event || !address) return false;
+    return event.attendees?.includes(address) || false;
   };
 
   if (isLoading) {
@@ -178,9 +222,20 @@ const EventDetails = () => {
                   ) : null}
                 </div>
                 
-                <Button variant="primary" size="lg" onClick={handleRegister}>
-                  Register for Event
-                </Button>
+                {isUserRegistered() ? (
+                  <Button variant="secondary" size="lg" disabled>
+                    Already Registered
+                  </Button>
+                ) : (
+                  <Button 
+                    variant="primary" 
+                    size="lg" 
+                    onClick={handleRegister}
+                    disabled={isRegistering || !isConnected}
+                  >
+                    {isRegistering ? 'Registering...' : 'Register for Event'}
+                  </Button>
+                )}
               </div>
               
               <div className="p-6 bg-brand-50 border border-brand-100 rounded-lg">
