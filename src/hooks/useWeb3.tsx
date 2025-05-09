@@ -1,4 +1,3 @@
-
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { getUserProfile, createUserProfile, UserProfile } from '@/lib/firebase';
@@ -9,6 +8,7 @@ interface Web3ContextType {
   balance: string | null;
   isConnecting: boolean;
   userProfile: UserProfile | null;
+  isConnected: boolean; // Add this property 
   connect: () => Promise<string | null>;
   disconnect: () => void;
   completeRegistration: (userData: UserProfileData) => Promise<boolean>;
@@ -19,6 +19,7 @@ const Web3Context = createContext<Web3ContextType>({
   balance: null,
   isConnecting: false,
   userProfile: null,
+  isConnected: false, // Add this property
   connect: async () => null,
   disconnect: () => {},
   completeRegistration: async () => false,
@@ -29,6 +30,9 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
   const [balance, setBalance] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+
+  // Compute isConnected based on address
+  const isConnected = !!address;
 
   const isMetaMaskInstalled = () => {
     return typeof window !== 'undefined' && window.ethereum !== undefined;
@@ -237,6 +241,7 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
         balance,
         isConnecting,
         userProfile,
+        isConnected,
         connect,
         disconnect,
         completeRegistration,

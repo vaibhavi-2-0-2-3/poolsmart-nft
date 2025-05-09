@@ -4,14 +4,14 @@ import { Link, useLocation } from "react-router-dom";
 import { Button } from "../shared/Button";
 import { WalletConnect } from "../wallet/WalletConnect";
 import { Menu, X } from "lucide-react";
-import { useMobile } from "@/hooks/use-mobile";
-import WalletDropdown from "../wallet/WalletDropdown";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { WalletDropdown } from "../wallet/WalletDropdown";
 import { useWeb3 } from "@/hooks/useWeb3";
 
 export function Navbar() {
-  const { isMobile } = useMobile();
+  const isMobile = useIsMobile();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { isConnected } = useWeb3();
+  const { address } = useWeb3();
   const location = useLocation();
 
   const navLinks = [
@@ -72,10 +72,16 @@ export function Navbar() {
                   ))}
                 </nav>
                 <div className="mt-6">
-                  {isConnected ? (
-                    <WalletDropdown className="w-full" />
+                  {address ? (
+                    <WalletDropdown
+                      address={address || ''}
+                      balance={'0.00'}
+                      userProfile={null}
+                      onDisconnect={() => {}}
+                      onCopyAddress={() => {}}
+                    />
                   ) : (
-                    <WalletConnect className="w-full" />
+                    <WalletConnect />
                   )}
                 </div>
               </div>
@@ -97,7 +103,13 @@ export function Navbar() {
               ))}
             </nav>
             <div className="pl-6 border-l border-border">
-              {isConnected ? <WalletDropdown /> : <WalletConnect />}
+              {address ? <WalletDropdown
+                address={address || ''}
+                balance={'0.00'}
+                userProfile={null}
+                onDisconnect={() => {}}
+                onCopyAddress={() => {}}
+              /> : <WalletConnect />}
             </div>
           </div>
         )}
