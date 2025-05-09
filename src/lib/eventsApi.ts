@@ -1,4 +1,3 @@
-
 import { collection, getDocs, getDoc, doc, query, where, addDoc, updateDoc } from "firebase/firestore";
 import { getFirestore } from "firebase/firestore";
 import { DEMO_EVENTS } from "@/components/home/EventsSlider";
@@ -143,6 +142,47 @@ export const registerForEvent = async (eventId: string, userAddress: string): Pr
   } catch (error) {
     console.error("Error registering for event:", error);
     return false;
+  }
+};
+
+// Get user's registered events
+export const getUserRegisteredEvents = async (userAddress: string): Promise<Event[]> => {
+  try {
+    console.log("Fetching registered events for user:", userAddress);
+    const eventsSnapshot = await getDocs(collection(db, "events"));
+    
+    if (eventsSnapshot.empty) {
+      console.log("No events found in Firebase");
+      return [];
+    }
+    
+    const registeredEvents: Event[] = [];
+    
+    eventsSnapshot.forEach((doc) => {
+      const data = doc.data();
+      const attendees = data.attendees || [];
+      
+      // Check if the user is in the attendees list
+      if (attendees.includes(userAddress)) {
+        registeredEvents.push({
+          id: doc.id,
+          title: data.title,
+          description: data.description,
+          date: data.date,
+          location: data.location,
+          imageUrl: data.imageUrl,
+          organizerName: data.organizerName,
+          price: data.price,
+          attendees: attendees
+        });
+      }
+    });
+    
+    console.log(`Found ${registeredEvents.length} registered events for user`);
+    return registeredEvents;
+  } catch (error) {
+    console.error("Error getting user's registered events:", error);
+    return [];
   }
 };
 

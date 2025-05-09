@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Navbar } from '@/components/layout/Navbar';
@@ -8,12 +7,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar, Clock, MapPin, Users, Star, Wallet, Car } from 'lucide-react';
 import { useWeb3 } from '@/hooks/useWeb3';
 import { Ride, getUserRides, getRides } from '@/lib/firebase';
+import { Event, getUserRegisteredEvents } from '@/lib/eventsApi';
 
 const Dashboard = () => {
   const { address, connect, userProfile } = useWeb3();
   const [activeTab, setActiveTab] = useState('bookings');
   const [myRides, setMyRides] = useState<Ride[]>([]);
   const [offeredRides, setOfferedRides] = useState<Ride[]>([]);
+  const [registeredEvents, setRegisteredEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
@@ -36,6 +37,10 @@ const Dashboard = () => {
       const allRides = await getRides();
       const userOfferedRides = allRides.filter(ride => ride.driver.address === userAddress);
       setOfferedRides(userOfferedRides);
+
+      // Get registered events
+      const userEvents = await getUserRegisteredEvents(userAddress);
+      setRegisteredEvents(userEvents);
     } catch (error) {
       console.error("Error loading user data:", error);
     } finally {
@@ -103,17 +108,27 @@ const Dashboard = () => {
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
             <h1 className="text-3xl font-bold">Dashboard</h1>
-            <Link to="/rides">
-              <Button 
-                variant="primary" 
-                iconLeft={<Car className="h-4 w-4" />}
-              >
-                Offer a New Ride
-              </Button>
-            </Link>
+            <div className="space-x-4 mt-4 md:mt-0">
+              <Link to="/events">
+                <Button 
+                  variant="outline" 
+                  iconLeft={<Calendar className="h-4 w-4" />}
+                >
+                  Browse Events
+                </Button>
+              </Link>
+              <Link to="/rides">
+                <Button 
+                  variant="primary" 
+                  iconLeft={<Car className="h-4 w-4" />}
+                >
+                  Offer a New Ride
+                </Button>
+              </Link>
+            </div>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <Card className="p-6 bg-brand-50 border-brand-100">
               <div className="flex items-center">
                 <div className="h-12 w-12 rounded-full bg-brand-100 flex items-center justify-center mr-4">
@@ -149,12 +164,25 @@ const Dashboard = () => {
                 </div>
               </div>
             </Card>
+            
+            <Card className="p-6 bg-purple-50 border-purple-100">
+              <div className="flex items-center">
+                <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center mr-4">
+                  <Calendar className="h-6 w-6 text-purple-600" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground">Events</h3>
+                  <p className="text-lg font-semibold">{registeredEvents.length}</p>
+                </div>
+              </div>
+            </Card>
           </div>
           
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-6">
               <TabsTrigger value="bookings">My Bookings</TabsTrigger>
               <TabsTrigger value="offered">Offered Rides</TabsTrigger>
+              <TabsTrigger value="events">Registered Events</TabsTrigger>
             </TabsList>
             
             <TabsContent value="bookings">
@@ -369,6 +397,80 @@ const Dashboard = () => {
                               Edit Ride
                             </Button>
                           </div>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="events">
+              {loading ? (
+                <Card className="p-8">
+                  <div className="flex justify-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-600"></div>
+                  </div>
+                </Card>
+              ) : registeredEvents.length === 0 ? (
+                <Card className="p-8 text-center">
+                  <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h2 className="text-xl font-semibold mb-4">No Registered Events</h2>
+                  <p className="text-muted-foreground mb-6">
+                    You haven't registered for any events yet. Browse available events and register for your first one!
+                  </p>
+                  <Button variant="primary" asChild>
+                    <Link to="/events">Browse Events</Link>
+                  </Button>
+                </Card>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {registeredEvents.map((event) => (
+                    <Card key={event.id} className="overflow-hidden">
+                      <div className="relative aspect-video overflow-hidden bg-muted">
+                        {event.imageUrl ? (
+                          <img 
+                            src={event.imageUrl} 
+                            alt={event.title} 
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-r from-brand-50 to-brand-100 flex items-center justify-center">
+                            <Calendar className="h-16 w-16 text-brand-600 opacity-50" />
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="p-5">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="text-xs font-medium bg-brand-50 text-brand-700 px-2 py-1 rounded-full">
+                            {formatDate(event.date)}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {formatTime(event.date)}
+                          </div>
+                        </div>
+                        
+                        <h3 className="font-semibold text-lg mb-2">{event.title}</h3>
+                        
+                        <div className="flex items-start mb-4">
+                          <MapPin className="h-4 w-4 text-brand-600 mt-0.5 mr-2 flex-shrink-0" />
+                          <span className="text-muted-foreground text-sm">{event.location}</span>
+                        </div>
+                        
+                        <div className="flex items-center justify-between mt-4">
+                          <div className="flex items-center">
+                            <Users className="h-4 w-4 text-brand-600 mr-1" />
+                            <span className="text-sm text-muted-foreground">
+                              {event.attendees?.length || 0} attendees
+                            </span>
+                          </div>
+                          
+                          <Button variant="outline" size="sm" asChild>
+                            <Link to={`/events/${event.id}`}>
+                              View Details
+                            </Link>
+                          </Button>
                         </div>
                       </div>
                     </Card>

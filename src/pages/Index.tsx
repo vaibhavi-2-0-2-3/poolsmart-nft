@@ -5,6 +5,7 @@ import { Footer } from '@/components/layout/Footer';
 import { Hero } from '@/components/home/Hero';
 import { Features } from '@/components/home/Features';
 import { HowItWorks } from '@/components/home/HowItWorks';
+import { EventsSlider } from '@/components/home/EventsSlider'; 
 
 const Index = () => {
   return (
@@ -14,6 +15,7 @@ const Index = () => {
         <Hero />
         <Features />
         <HowItWorks />
+        <EventsSlider />
       </main>
       <Footer />
     </div>
