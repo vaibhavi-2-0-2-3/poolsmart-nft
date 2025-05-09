@@ -1,69 +1,85 @@
-# Welcome to your Lovable project
+# 🚗 DecentraRide – Blockchain-Powered Carpooling App
 
-## Project info
+**DecentraRide** is a decentralized carpooling platform built with Web3 at its core. It enables users to **book, post, and pay for rides securely via blockchain**, while also offering **NFT-based premium memberships** for exclusive features and services.
 
-**URL**: https://lovable.dev/projects/aa7ef38e-2220-4cfc-b8eb-04c262f523b4
+---
 
-## How can I edit this code?
+## 🌐 Live Preview
 
-There are several ways of editing your application.
+🔗 [Try the App](https://lovable.dev/projects/aa7ef38e-2220-4cfc-b8eb-04c262f523b4)
 
-**Use Lovable**
+---
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/aa7ef38e-2220-4cfc-b8eb-04c262f523b4) and start prompting.
+## 🔐 Powered by Blockchain
 
-Changes made via Lovable will be committed automatically to this repo.
+* 💸 **Crypto Payments**: All transactions are securely processed using smart contracts.
+* 🧾 **NFT Memberships**: Unlock premium features like priority booking and verified rides with NFT-based passes.
+* 🪙 **Wallet Login**: Sign in using MetaMask or any compatible Web3 wallet.
+* 📜 **Immutable Bookings**: Ride data and bookings are recorded on-chain for transparency.
 
-**Use your preferred IDE**
+---
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## ✨ Features
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+* 🔍 Search rides by location, time, and seat availability
+* 🚘 Post rides as a driver with full control over routes and pricing
+* 🧑‍💼 Authenticate using Web3 wallet – no email/password required
+* 🎟️ Premium access through NFT verification
+* 📱 Fully responsive, optimized for mobile and desktop
+* 🧠 Built with a modern tech stack and clean UI components
 
-Follow these steps:
+---
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
+## 🧰 Tech Stack
+
+| Layer                  | Technology                                 |
+| ---------------------- | ------------------------------------------ |
+| **Frontend**           | React, TypeScript, Tailwind CSS, shadcn/ui |
+| **Build Tool**         | Vite                                       |
+| **Blockchain**         | Ethereum / Polygon (via smart contracts)   |
+| **Wallet**             | MetaMask (Web3.js / Ethers.js integration) |
+| **NFTs**               | ERC-721 based premium memberships          |
+| **Backend (optional)** | IPFS / Third-party blockchain APIs         |
+
+---
+
+## 🛠️ Getting Started
+
+Make sure Node.js and npm are installed. Also, connect MetaMask or a compatible Web3 wallet for full functionality.
+
+```bash
+# Clone the repo
 git clone <YOUR_GIT_URL>
 
-# Step 2: Navigate to the project directory.
+# Enter the directory
 cd <YOUR_PROJECT_NAME>
 
-# Step 3: Install the necessary dependencies.
-npm i
+# Install dependencies
+npm install
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Start the dev server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+---
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## 🚀 Deployment
 
-**Use GitHub Codespaces**
+You can deploy this app via:
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+* 🔁 Built-in deployment tools (Share → Publish)
+* 🌍 External services like **Netlify**, **Vercel**, or **Fleek** for IPFS hosting
 
-## What technologies are used for this project?
+For custom domains, we recommend using **Netlify** or **Fleek** with domain configuration.
 
-This project is built with .
+---
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## 📄 License
 
-## How can I deploy this project?
+Licensed under the [MIT License](LICENSE).
 
-Simply open [Lovable](https://lovable.dev/projects/aa7ef38e-2220-4cfc-b8eb-04c262f523b4) and click on Share -> Publish.
+---
 
-## I want to use a custom domain - is that possible?
+## 🤝 Contributing
 
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+Want to help build the future of decentralized transport? Fork the repo, open a pull request, or suggest features via Issues!
