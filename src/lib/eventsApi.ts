@@ -1,5 +1,5 @@
 
-import { collection, getDocs, getDoc, doc, query, where, addDoc } from "firebase/firestore";
+import { collection, getDocs, getDoc, doc, query, where, addDoc, updateDoc } from "firebase/firestore";
 import { getFirestore } from "firebase/firestore";
 import { DEMO_EVENTS } from "@/components/home/EventsSlider";
 
@@ -131,11 +131,11 @@ export const registerForEvent = async (eventId: string, userAddress: string): Pr
       
       // Add user to attendees list
       attendees.push(userAddress);
-      await addDoc(collection(db, "events", eventId, "attendees"), {
-        userAddress,
-        registeredAt: new Date().toISOString()
-      });
       
+      // Update the event document with the new attendees list
+      await updateDoc(eventRef, { attendees });
+      
+      console.log("User successfully registered for event");
       return true;
     }
     

@@ -8,7 +8,7 @@ interface Web3ContextType {
   balance: string | null;
   isConnecting: boolean;
   userProfile: UserProfile | null;
-  isConnected: boolean; // Add this property 
+  isConnected: boolean; // Added isConnected property
   connect: () => Promise<string | null>;
   disconnect: () => void;
   completeRegistration: (userData: UserProfileData) => Promise<boolean>;
@@ -241,7 +241,7 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
         balance,
         isConnecting,
         userProfile,
-        isConnected,
+        isConnected, // Add isConnected to the context value
         connect,
         disconnect,
         completeRegistration,

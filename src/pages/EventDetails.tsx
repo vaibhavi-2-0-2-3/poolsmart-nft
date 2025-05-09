@@ -1,10 +1,9 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { Button } from '@/components/shared/Button';
-import { Calendar, MapPin, User, Clock, ArrowLeft } from 'lucide-react';
+import { Calendar, MapPin, User, ArrowLeft } from 'lucide-react';
 import { getEventById, registerForEvent } from '@/lib/eventsApi';
 import { Event } from '@/lib/eventsApi';
 import { Skeleton } from '@/components/ui/skeleton';
