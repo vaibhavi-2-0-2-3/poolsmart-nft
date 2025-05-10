@@ -5,7 +5,7 @@ import { Footer } from '@/components/layout/Footer';
 import { Hero } from '@/components/home/Hero';
 import { Features } from '@/components/home/Features';
 import { HowItWorks } from '@/components/home/HowItWorks';
-import { EventsSlider } from '@/components/home/EventsSlider';
+import { FeaturedEvents } from '@/components/home/FeaturedEvents';
 import { initializeEventsInFirebase } from '@/lib/eventsApi';
 
 const Index = () => {
@@ -13,7 +13,7 @@ const Index = () => {
     // Initialize events when the app starts
     initializeEventsInFirebase();
   }, []);
-  
+
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
@@ -21,7 +21,7 @@ const Index = () => {
         <Hero />
         <Features />
         <HowItWorks />
-        <EventsSlider />
+        <FeaturedEvents />
       </main>
       <Footer />
     </div>
