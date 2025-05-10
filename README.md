@@ -1,85 +1,255 @@
-# 🚗 DecentraRide – Blockchain-Powered Carpooling App
 
-**DecentraRide** is a decentralized carpooling platform built with Web3 at its core. It enables users to **book, post, and pay for rides securely via blockchain**, while also offering **NFT-based premium memberships** for exclusive features and services.
+# 🚗 DecentraRide - Decentralized Blockchain Carpooling Platform
 
----
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-## 🌐 Live Preview
+## 📌 Project Overview
 
-🔗 [Try the App](https://lovable.dev/projects/aa7ef38e-2220-4cfc-b8eb-04c262f523b4)
+DecentraRide is a modern Web3 carpooling platform that leverages blockchain technology to create a decentralized, transparent, and efficient ride-sharing ecosystem. By utilizing smart contracts for transactions and NFT-based membership tiers, we're redefining trust and security in the sharing economy.
 
----
+![DecentraRide Platform](./screenshots/platform-preview.png)
+*Project screenshot placeholder - replace with actual screenshots*
 
-## 🔐 Powered by Blockchain
+## 🛠️ Technology Stack
 
-* 💸 **Crypto Payments**: All transactions are securely processed using smart contracts.
-* 🧾 **NFT Memberships**: Unlock premium features like priority booking and verified rides with NFT-based passes.
-* 🪙 **Wallet Login**: Sign in using MetaMask or any compatible Web3 wallet.
-* 📜 **Immutable Bookings**: Ride data and bookings are recorded on-chain for transparency.
+### Frontend
+- **React 18** with TypeScript for a robust, type-safe UI
+- **Vite** for lightning-fast builds and development experience
+- **TailwindCSS** for utility-first styling
+- **shadcn/ui** for pre-built accessible UI components
+- **React Router** for application routing
+- **Tanstack React Query** for data fetching and state management
+- **Lucide React** for consistent iconography
 
----
+### Backend & Blockchain
+- **Firebase** for backend services and database
+- **Ethereum/Polygon** blockchain network integration
+- **Web3.js/Ethers.js** for blockchain interactions
+- **Smart Contracts** written in Solidity (ERC-721 for NFT membership)
+- **IPFS** for decentralized file storage (profile photos, ride details)
 
-## ✨ Features
+## ⭐ Key Features
 
-* 🔍 Search rides by location, time, and seat availability
-* 🚘 Post rides as a driver with full control over routes and pricing
-* 🧑‍💼 Authenticate using Web3 wallet – no email/password required
-* 🎟️ Premium access through NFT verification
-* 📱 Fully responsive, optimized for mobile and desktop
-* 🧠 Built with a modern tech stack and clean UI components
+### 🔐 Web3 Authentication
+- Connect with MetaMask and other Web3 wallets
+- ENS name resolution support
+- Passwordless authentication
 
----
+### 🎫 NFT-Based Membership Tiers
+- Premium members receive priority matching
+- Reduced platform fees for NFT holders
+- Special access to exclusive community events
+- NFT staking for additional benefits
 
-## 🧰 Tech Stack
+### 🚘 Ride Management
+- Post rides as a driver with full route control
+- Book available seats with transparent pricing
+- Real-time ride status updates
+- Ride history stored on blockchain for verification
 
-| Layer                  | Technology                                 |
-| ---------------------- | ------------------------------------------ |
-| **Frontend**           | React, TypeScript, Tailwind CSS, shadcn/ui |
-| **Build Tool**         | Vite                                       |
-| **Blockchain**         | Ethereum / Polygon (via smart contracts)   |
-| **Wallet**             | MetaMask (Web3.js / Ethers.js integration) |
-| **NFTs**               | ERC-721 based premium memberships          |
-| **Backend (optional)** | IPFS / Third-party blockchain APIs         |
+### 💵 Decentralized Payments
+- Direct wallet-to-wallet crypto payments
+- Smart contract escrow for payment security
+- Multiple cryptocurrency support
+- Automated refunds for cancellations
 
----
+### 🎭 Community & Governance
+- DAO voting on platform updates
+- Community-driven event organization
+- Reputation system built on blockchain verification
 
-## 🛠️ Getting Started
+## 📡 API Endpoints
 
-Make sure Node.js and npm are installed. Also, connect MetaMask or a compatible Web3 wallet for full functionality.
+### Authentication
+| Method | Endpoint | Description | Example |
+|--------|----------|-------------|---------|
+| `GET` | `/api/auth/nonce/:address` | Get authentication nonce for wallet signing | `GET /api/auth/nonce/0x1234...` |
+| `POST` | `/api/auth/verify` | Verify signed message for authentication | `POST /api/auth/verify {signature, address}` |
 
+### Rides
+| Method | Endpoint | Description | Example |
+|--------|----------|-------------|---------|
+| `GET` | `/api/rides` | Get all available rides with optional filters | `GET /api/rides?from=NYC&to=Boston` |
+| `GET` | `/api/rides/:id` | Get specific ride details | `GET /api/rides/123` |
+| `POST` | `/api/rides` | Create a new ride listing | `POST /api/rides {from, to, price, date, seats}` |
+| `POST` | `/api/rides/:id/book` | Book seats on a ride | `POST /api/rides/123/book {seats: 2}` |
+
+### User Profiles
+| Method | Endpoint | Description | Example |
+|--------|----------|-------------|---------|
+| `GET` | `/api/profile/:address` | Get user profile data | `GET /api/profile/0x1234...` |
+| `PUT` | `/api/profile` | Update user profile | `PUT /api/profile {name, bio, avatar}` |
+| `GET` | `/api/profile/:address/rides` | Get user's rides (as driver or passenger) | `GET /api/profile/0x1234.../rides` |
+
+### Events
+| Method | Endpoint | Description | Example |
+|--------|----------|-------------|---------|
+| `GET` | `/api/events` | Get all community events | `GET /api/events` |
+| `GET` | `/api/events/:id` | Get specific event details | `GET /api/events/abc123` |
+| `POST` | `/api/events/:id/register` | Register for an event | `POST /api/events/abc123/register` |
+
+## 🔧 Smart Contract Architecture
+
+DecentraRide utilizes several smart contracts to manage various aspects of the platform:
+
+### RideContract.sol
+Handles ride creation, booking, payment escrow, and completion verification.
+
+```solidity
+// Key functions
+function createRide(address driver, string memory from, string memory to, uint256 price, uint256 seats) public returns (uint256);
+function bookRide(uint256 rideId, uint256 seats) public payable;
+function startRide(uint256 rideId) public onlyDriver(rideId);
+function completeRide(uint256 rideId) public onlyDriver(rideId);
+```
+
+### MembershipNFT.sol
+ERC-721 contract for membership tiers with utility functions.
+
+```solidity
+// Key functions
+function mintMembership(address to, uint256 tier) public payable;
+function getMembershipTier(address user) public view returns (uint256);
+function upgradeNFTTier(uint256 tokenId, uint256 newTier) public payable;
+```
+
+### GovernanceToken.sol
+ERC-20 token for DAO governance rights.
+
+```solidity
+// Key functions
+function proposeChange(string memory description, bytes memory transactionData) public returns (uint256);
+function vote(uint256 proposalId, bool support) public;
+function executeProposal(uint256 proposalId) public;
+```
+
+## 🚀 Local Development Setup
+
+### Prerequisites
+- Node.js v18+ and npm/yarn
+- MetaMask or other Web3 wallet browser extension
+- Local blockchain environment (Hardhat, Ganache, or similar)
+
+### Frontend Setup
 ```bash
-# Clone the repo
-git clone <YOUR_GIT_URL>
-
-# Enter the directory
-cd <YOUR_PROJECT_NAME>
+# Clone the repository
+git clone https://github.com/yourusername/decentra-ride.git
+cd decentra-ride
 
 # Install dependencies
 npm install
 
-# Start the dev server
+# Start development server
 npm run dev
 ```
 
----
+### Smart Contract Deployment (Local)
+```bash
+# Install Hardhat (if not using the repo's package.json)
+npm install --save-dev hardhat
 
-## 🚀 Deployment
+# Run local blockchain
+npx hardhat node
 
-You can deploy this app via:
+# Deploy contracts
+npx hardhat run scripts/deploy.js --network localhost
+```
 
-* 🔁 Built-in deployment tools (Share → Publish)
-* 🌍 External services like **Netlify**, **Vercel**, or **Fleek** for IPFS hosting
+### Environment Configuration
+Create a `.env` file in the project root with the following variables:
+```
+VITE_FIREBASE_API_KEY=your_firebase_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_firebase_auth_domain
+VITE_FIREBASE_PROJECT_ID=your_firebase_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_firebase_storage_bucket
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_firebase_messaging_sender_id
+VITE_FIREBASE_APP_ID=your_firebase_app_id
 
-For custom domains, we recommend using **Netlify** or **Fleek** with domain configuration.
+# Smart contract addresses (after deployment)
+VITE_RIDE_CONTRACT_ADDRESS=0x...
+VITE_MEMBERSHIP_NFT_ADDRESS=0x...
+VITE_GOVERNANCE_TOKEN_ADDRESS=0x...
+```
 
----
+## 📁 Project Structure
+
+```
+decentra-ride/
+├── public/                  # Static assets
+├── src/
+│   ├── components/          # React components
+│   │   ├── events/          # Event-related components
+│   │   ├── home/            # Homepage components
+│   │   ├── layout/          # Layout components (navbar, footer)
+│   │   ├── profile/         # User profile components
+│   │   ├── rides/           # Ride listing and booking components
+│   │   ├── shared/          # Shared UI components
+│   │   ├── ui/              # Base UI components (shadcn)
+│   │   └── wallet/          # Wallet connection components
+│   ├── contracts/           # Smart contract ABIs and addresses
+│   ├── hooks/               # Custom React hooks
+│   ├── lib/                 # Utilities and API clients
+│   │   ├── blockchain/      # Blockchain interaction utilities
+│   │   ├── firebase.ts      # Firebase configuration
+│   │   └── web3.ts          # Web3 utilities
+│   ├── pages/               # Application pages/routes
+│   └── main.tsx             # Application entry point
+├── contracts/               # Solidity smart contracts
+│   ├── RideContract.sol     # Ride management contract
+│   ├── MembershipNFT.sol    # NFT membership contract
+│   └── GovernanceToken.sol  # DAO governance token contract
+├── scripts/                 # Deployment and utility scripts
+└── hardhat.config.js        # Hardhat configuration
+```
+
+## 🧪 Testing
+
+### Frontend Tests
+```bash
+# Run frontend tests
+npm run test
+```
+
+### Smart Contract Tests
+```bash
+# Run smart contract tests
+npx hardhat test
+```
+
+## 🚨 Known Issues & Limitations
+
+- MetaMask mobile app support is limited
+- Gas fee estimations may vary based on network congestion
+- NFT membership features require testnet ETH for testing purposes
+
+## 🛣️ Roadmap
+
+- [ ] Cross-chain support for multiple blockchain networks
+- [ ] Mobile application development
+- [ ] Integration with traditional ridesharing APIs
+- [ ] Advanced reputation system with zero-knowledge proofs
+- [ ] Real-time ride tracking with IoT integration
+
+## 👨‍💻 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## 📄 License
 
-Licensed under the [MIT License](LICENSE).
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgements
+
+- [OpenZeppelin](https://openzeppelin.com/) for secure smart contract templates
+- [Ethereum Foundation](https://ethereum.org/) for Web3 development resources
+- [shadcn/ui](https://ui.shadcn.com/) for accessible React components
 
 ---
 
-## 🤝 Contributing
-
-Want to help build the future of decentralized transport? Fork the repo, open a pull request, or suggest features via Issues!
+*This README was generated for the DecentraRide project. For questions or support, please open an issue in the repository.*
