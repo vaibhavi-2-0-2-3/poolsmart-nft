@@ -1,10 +1,9 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Navbar } from '@/components/layout/Navbar';
 import { Card } from '@/components/shared/Card';
 import { Button } from '@/components/shared/Button';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, MapPin } from 'lucide-react';
 import { getDriverById, Driver, getRides, Ride as FirebaseRide, getUserProfile } from '@/lib/firebase';
 import { ContactDriverModal } from '@/components/driver/ContactDriverModal';
 import { ProfileEditModal } from '@/components/profile/ProfileEditModal';
@@ -14,6 +13,7 @@ import { DriverRidesList } from '@/components/driver/DriverRidesList';
 import { DriverReviews } from '@/components/driver/DriverReviews';
 import { useWeb3 } from '@/hooks/useWeb3';
 import { useToast } from '@/hooks/use-toast';
+import { LiveTracking } from '@/components/tracking/LiveTracking';
 
 // We're explicitly removing the import from db.ts to avoid type conflicts
 // import { Ride as DbRide } from '@/lib/db';
@@ -26,6 +26,7 @@ const DriverProfile = () => {
   const [loading, setLoading] = useState(true);
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [profileEditModalOpen, setProfileEditModalOpen] = useState(false);
+  const [trackingRideId, setTrackingRideId] = useState<string | null>(null);
   const { address, userProfile } = useWeb3();
   const { toast } = useToast();
   const [userProfile2, setUserProfile2] = useState({
@@ -100,6 +101,10 @@ const DriverProfile = () => {
     setContactModalOpen(true);
   };
   
+  const handleStartTracking = (rideId: string) => {
+    setTrackingRideId(trackingRideId === rideId ? null : rideId);
+  };
+  
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -159,13 +164,13 @@ const DriverProfile = () => {
           
           {hasBookedRides && (
             <Card className="p-6 mb-6 border-green-500 border">
-              <h3 className="text-lg font-semibold text-green-600 mb-2">Your Booked Rides with {driver.name}</h3>
+              <h3 className="text-lg font-semibold text-green-600 mb-2">Your Booked Rides with {driver?.name}</h3>
               <p className="text-sm text-muted-foreground mb-4">
                 You have {userRides.length} upcoming {userRides.length === 1 ? 'ride' : 'rides'} with this driver.
               </p>
               <div className="space-y-2">
                 {userRides.map((ride) => (
-                  <div key={ride.id} className="flex justify-between items-center p-3 bg-green-50 rounded-md">
+                  <div key={ride.id} className="flex justify-between items-center p-3 bg-green-50 dark:bg-green-900/20 rounded-md">
                     <div>
                       <div className="font-medium">{ride.departure.location} → {ride.destination.location}</div>
                       <div className="text-xs text-muted-foreground">
@@ -178,30 +183,55 @@ const DriverProfile = () => {
                         })}
                       </div>
                     </div>
-                    <div className="text-sm font-semibold">
-                      {ride.status === 'active' ? 'Booked' : ride.status}
+                    <div className="flex items-center gap-2">
+                      <div className="text-sm font-semibold">
+                        {ride.status === 'active' ? 'Booked' : ride.status}
+                      </div>
+                      {(ride.status === 'active' || ride.status === 'in_progress') && (
+                        <Button 
+                          variant={trackingRideId === ride.id ? "default" : "outline"} 
+                          size="sm" 
+                          onClick={() => handleStartTracking(ride.id)}
+                        >
+                          <MapPin className="h-4 w-4 mr-1" />
+                          {trackingRideId === ride.id ? 'Hide Tracking' : 'Track'}
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))}
               </div>
+              
+              {trackingRideId && userRides.some(ride => ride.id === trackingRideId) && (
+                <div className="mt-4 animate-in fade-in slide-in-from-top-5 duration-300">
+                  <LiveTracking
+                    rideId={trackingRideId}
+                    driverId={driver?.id || ''}
+                    driverName={driver?.name || ''}
+                    departure={userRides.find(r => r.id === trackingRideId)?.departure.location || ''}
+                    destination={userRides.find(r => r.id === trackingRideId)?.destination.location || ''}
+                    onClose={() => setTrackingRideId(null)}
+                  />
+                </div>
+              )}
             </Card>
           )}
           
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-1">
               <DriverProfileCard 
-                driver={driver} 
+                driver={driver!} 
                 onContactDriver={handleContactDriver}
               />
             </div>
             
             <div className="lg:col-span-2">
               <DriverRidesList 
-                driverName={driver.name}
+                driverName={driver?.name || ''}
                 rides={driverRides}
               />
               
-              <DriverReviews reviewCount={driver.reviewCount || 0} />
+              <DriverReviews reviewCount={driver?.reviewCount || 0} />
             </div>
           </div>
         </div>
@@ -209,7 +239,7 @@ const DriverProfile = () => {
       
       {/* Contact Driver Modal */}
       <ContactDriverModal 
-        driverName={driver.name}
+        driverName={driver?.name || ''}
         isOpen={contactModalOpen}
         onClose={() => setContactModalOpen(false)}
       />

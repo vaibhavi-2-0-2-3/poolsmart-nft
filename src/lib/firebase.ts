@@ -60,6 +60,11 @@ export interface Ride {
   startedAt?: string;
   endedAt?: string;
   verified: boolean; // Changed from optional to required to match db.ts
+  currentLocation?: {
+    lat: number;
+    lng: number;
+    updatedAt: string;
+  };
 }
 
 export interface UserProfile {
@@ -732,6 +737,95 @@ const getMockDriverById = (driverId: string): Driver => {
 
 export { addDoc as addRide };
 
+export const updateDriverLocation = async (
+  rideId: string,
+  latitude: number,
+  longitude: number
+): Promise<boolean> => {
+  try {
+    const rideRef = doc(db, "rides", rideId);
+    
+    await updateDoc(rideRef, {
+      currentLocation: {
+        lat: latitude,
+        lng: longitude,
+        updatedAt: new Date().toISOString()
+      }
+    });
+    
+    return true;
+  } catch (error) {
+    console.error("Error updating driver location in Firebase:", error);
+    
+    // Fallback to localStorage
+    const localRides = localStorage.getItem("rides");
+    if (localRides) {
+      const rides = JSON.parse(localRides);
+      const updatedRides = rides.map((ride: Ride) => {
+        if (ride.id === rideId) {
+          return {
+            ...ride,
+            currentLocation: {
+              lat: latitude,
+              lng: longitude,
+              updatedAt: new Date().toISOString()
+            }
+          };
+        }
+        return ride;
+      });
+      localStorage.setItem("rides", JSON.stringify(updatedRides));
+      return true;
+    }
+    return false;
+  }
+};
+
+export const subscribeToDriverLocation = (
+  rideId: string,
+  callback: (location: { lat: number; lng: number; updatedAt: string } | null) => void
+): (() => void) => {
+  try {
+    const rideRef = doc(db, "rides", rideId);
+    
+    // Set up Firebase listener
+    const unsubscribe = onSnapshot(rideRef, (doc) => {
+      if (doc.exists()) {
+        const data = doc.data() as Ride;
+        if (data.currentLocation) {
+          callback(data.currentLocation);
+        } else {
+          callback(null);
+        }
+      } else {
+        callback(null);
+      }
+    }, (error) => {
+      console.error("Error listening for location updates:", error);
+      callback(null);
+    });
+    
+    return unsubscribe;
+  } catch (error) {
+    console.error("Error setting up location subscription:", error);
+    
+    // Mock implementation for demo purposes
+    const interval = setInterval(() => {
+      // Get from localStorage or generate random location near NYC
+      const mockLat = 40.7128 + (Math.random() * 0.02 - 0.01);
+      const mockLng = -74.0060 + (Math.random() * 0.02 - 0.01);
+      
+      callback({
+        lat: mockLat,
+        lng: mockLng,
+        updatedAt: new Date().toISOString()
+      });
+    }, 5000);
+    
+    return () => clearInterval(interval);
+  }
+};
+
 export default {
   getRides,
   getUserRides,
@@ -747,4 +841,6 @@ export default {
   getUserProfile,
   updateUserProfile,
   getDriverById,
+  updateDriverLocation,
+  subscribeToDriverLocation,
 };

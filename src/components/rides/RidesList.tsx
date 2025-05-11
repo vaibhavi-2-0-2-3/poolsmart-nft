@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { getRides, Ride, bookRide } from '@/lib/firebase';
 import { Card } from '@/components/shared/Card';
@@ -9,6 +8,8 @@ import { useWeb3 } from '@/hooks/useWeb3';
 import { useToast } from '@/hooks/use-toast';
 import { Link } from 'react-router-dom';
 import { PaymentModal } from './PaymentModal';
+import { TrackDriverButton } from './TrackDriverButton';
+import { LiveTracking } from '../tracking/LiveTracking';
 
 interface RidesListProps {
   searchParams?: {
@@ -29,6 +30,7 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams = {}, refreshTrigger
   const [bookingInProgress, setBookingInProgress] = useState<string | null>(null);
   const { address, connect, userProfile } = useWeb3();
   const { toast } = useToast();
+  const [trackingRideId, setTrackingRideId] = useState<string | null>(null);
 
   const fetchRides = useCallback(async () => {
     setLoading(true);
@@ -168,6 +170,14 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams = {}, refreshTrigger
     setSelectedRide(null);
   };
 
+  const toggleTracking = (ride: Ride) => {
+    if (trackingRideId === ride.id) {
+      setTrackingRideId(null);
+    } else {
+      setTrackingRideId(ride.id);
+    }
+  };
+
   if (loading) {
     return (
       <div className="mt-6 animate-pulse space-y-4">
@@ -199,90 +209,112 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams = {}, refreshTrigger
     <div className="mt-6 space-y-4">
       {rides.map((ride) => {
         const isUserPassenger = ride.passengers?.includes(address || '');
+        const isTracking = trackingRideId === ride.id;
         
         return (
-          <Card key={ride.id} className="p-6">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4">
-              <div className="flex items-center mb-4 md:mb-0">
-                <div className="flex-shrink-0 mr-4">
-                  <div className="h-12 w-12 rounded-full bg-brand-100 flex items-center justify-center">
-                    <Car className="h-6 w-6 text-brand-600" />
+          <div key={ride.id}>
+            <Card className="p-6">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4">
+                <div className="flex items-center mb-4 md:mb-0">
+                  <div className="flex-shrink-0 mr-4">
+                    <div className="h-12 w-12 rounded-full bg-brand-100 flex items-center justify-center">
+                      <Car className="h-6 w-6 text-brand-600" />
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold">
+                      {ride.departure.location} → {ride.destination.location}
+                    </h3>
+                    <Link to={`/driver/${ride.driver.id}`} className="flex items-center text-sm text-muted-foreground mt-1 hover:text-brand-600 transition-colors">
+                      <Star className="h-3.5 w-3.5 mr-1 text-yellow-500" />
+                      {ride.driver.rating.toFixed(1)} · {ride.driver.name}
+                    </Link>
                   </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-semibold">
-                    {ride.departure.location} → {ride.destination.location}
-                  </h3>
-                  <Link to={`/driver/${ride.driver.id}`} className="flex items-center text-sm text-muted-foreground mt-1 hover:text-brand-600 transition-colors">
-                    <Star className="h-3.5 w-3.5 mr-1 text-yellow-500" />
-                    {ride.driver.rating.toFixed(1)} · {ride.driver.name}
-                  </Link>
-                </div>
-              </div>
 
-              <div className="flex items-center">
-                <div className="text-xl font-semibold mr-4">
-                  {ride.price.toFixed(3)} ETH
+                <div className="flex items-center">
+                  <div className="text-xl font-semibold mr-4">
+                    {ride.price.toFixed(3)} ETH
+                  </div>
+                  <RideActions 
+                    ride={ride} 
+                    isDriver={address === ride.driver.address}
+                    isPassenger={isUserPassenger}
+                    onStatusChange={handleStatusChange}
+                  />
                 </div>
-                <RideActions 
-                  ride={ride} 
-                  isDriver={address === ride.driver.address}
-                  isPassenger={isUserPassenger}
-                  onStatusChange={handleStatusChange}
-                />
               </div>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-              <div className="flex items-center">
-                <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
-                <span>
-                  {new Date(ride.departure.time).toLocaleString('en-US', {
-                    weekday: 'short',
-                    month: 'short',
-                    day: 'numeric',
-                    hour: 'numeric',
-                    minute: 'numeric',
-                  })}
-                </span>
-              </div>
-              <div className="flex items-center">
-                <Users className="h-4 w-4 mr-2 text-muted-foreground" />
-                <span>{ride.seatsAvailable} seats available</span>
-              </div>
-              <div className="flex justify-end">
-                {!address ? (
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={handleConnect}
-                  >
-                    Connect Wallet to Book
-                  </Button>
-                ) : (
-                  address !== ride.driver.address && ride.status === 'active' && !isUserPassenger ? (
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div className="flex items-center">
+                  <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <span>
+                    {new Date(ride.departure.time).toLocaleString('en-US', {
+                      weekday: 'short',
+                      month: 'short',
+                      day: 'numeric',
+                      hour: 'numeric',
+                      minute: 'numeric',
+                    })}
+                  </span>
+                </div>
+                <div className="flex items-center">
+                  <Users className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <span>{ride.seatsAvailable} seats available</span>
+                </div>
+                <div className="flex justify-end">
+                  {!address ? (
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => handleBookRide(ride)}
-                      disabled={bookingInProgress === ride.id}
+                      onClick={handleConnect}
                     >
-                      {bookingInProgress === ride.id ? 'Booking...' : 'Book Ride'}
+                      Connect Wallet to Book
                     </Button>
-                  ) : isUserPassenger ? (
-                    <Link to={`/driver/${ride.driver.id}`}>
+                  ) : (
+                    address !== ride.driver.address && ride.status === 'active' && !isUserPassenger ? (
                       <Button 
                         variant="outline" 
                         size="sm"
+                        onClick={() => handleBookRide(ride)}
+                        disabled={bookingInProgress === ride.id}
                       >
-                        View Driver
+                        {bookingInProgress === ride.id ? 'Booking...' : 'Book Ride'}
                       </Button>
-                    </Link>
-                  ) : null
-                )}
+                    ) : isUserPassenger ? (
+                      <div className="flex gap-2">
+                        <Link to={`/driver/${ride.driver.id}`}>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                          >
+                            View Driver
+                          </Button>
+                        </Link>
+                        <TrackDriverButton
+                          isTracking={isTracking}
+                          onClick={() => toggleTracking(ride)}
+                        />
+                      </div>
+                    ) : null
+                  )}
+                </div>
               </div>
-            </div>
-          </Card>
+            </Card>
+            
+            {isTracking && (
+              <div className="mt-2 animate-in fade-in slide-in-from-top-5 duration-300">
+                <LiveTracking
+                  rideId={ride.id}
+                  driverId={ride.driver.id}
+                  driverName={ride.driver.name}
+                  departure={ride.departure.location}
+                  destination={ride.destination.location}
+                  onClose={() => setTrackingRideId(null)}
+                />
+              </div>
+            )}
+          </div>
         );
       })}
       
