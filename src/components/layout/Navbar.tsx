@@ -7,6 +7,7 @@ import { Menu, X } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { WalletDropdown } from "../wallet/WalletDropdown";
 import { useWeb3 } from "@/hooks/useWeb3";
+import { ThemeToggle } from "./ThemeToggle";
 
 export function Navbar() {
   const isMobile = useIsMobile();
@@ -59,14 +60,17 @@ export function Navbar() {
 
         {isMobile ? (
           <>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="md:hidden"
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-            >
-              {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-            </Button>
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="md:hidden"
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+              >
+                {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+              </Button>
+            </div>
 
             {isMenuOpen && (
               <div className="fixed inset-0 top-16 z-50 bg-background/95 p-6 flex flex-col gap-4 border-t animate-in fade-in slide-in-from-top">
@@ -115,7 +119,8 @@ export function Navbar() {
                 </Link>
               ))}
             </nav>
-            <div className="pl-6 border-l border-border">
+            <div className="pl-6 border-l border-border flex items-center gap-4">
+              <ThemeToggle />
               {address ? (
                 <div className="relative wallet-dropdown">
                   <Button
