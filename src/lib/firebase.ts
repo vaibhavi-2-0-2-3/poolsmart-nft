@@ -197,9 +197,24 @@ export const createOrUpdateDriver = async (driver: Driver): Promise<void> => {
       await addDoc(driversCollection, driver);
       console.log("Driver created in Firebase");
     } else {
-      // Update existing driver
+      // Update existing driver - convert driver to plain object to satisfy Firestore types
       const driverDocRef = driverSnapshot.docs[0].ref;
-      await updateDoc(driverDocRef, driver);
+      const updateData = {
+        id: driver.id,
+        name: driver.name,
+        rating: driver.rating,
+        avatar: driver.avatar,
+        address: driver.address,
+        reviewCount: driver.reviewCount,
+        bio: driver.bio,
+        carModel: driver.carModel,
+        carColor: driver.carColor,
+        licensePlate: driver.licensePlate,
+        joinDate: driver.joinDate,
+        totalRides: driver.totalRides,
+        verified: driver.verified,
+      };
+      await updateDoc(driverDocRef, updateData);
       console.log("Driver updated in Firebase");
     }
   } catch (error) {
