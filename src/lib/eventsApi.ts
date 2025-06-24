@@ -1,6 +1,4 @@
-
 import { collection, getDocs, getDoc, doc, query, where, addDoc, updateDoc } from "firebase/firestore";
-import { getFirestore } from "firebase/firestore";
 import { DEMO_EVENTS } from "@/components/home/EventsSlider";
 
 export interface Event {
@@ -15,8 +13,8 @@ export interface Event {
   attendees?: string[]; // Add attendees array to track who registered
 }
 
-// Get Firestore instance
-const db = getFirestore();
+// Import the initialized db from firebase.ts
+import { db } from "./firebase";
 
 // Initialize events in Firebase if they don't exist
 export const initializeEventsInFirebase = async (): Promise<void> => {
