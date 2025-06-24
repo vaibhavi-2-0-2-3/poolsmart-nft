@@ -1,11 +1,14 @@
-
 import React, { useState } from 'react';
 import { Card } from '@/components/shared/Card';
 import { Star, ThumbsUp, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { useWeb3 } from '@/hooks/useWeb3';
 import { useToast } from '@/hooks/use-toast';
+
+// Mock user session
+const mockUser = {
+  address: 'user123'
+};
 
 interface DriverReviewsProps {
   reviewCount: number;
@@ -16,7 +19,7 @@ export const DriverReviews: React.FC<DriverReviewsProps> = ({ reviewCount }) => 
   const [reviewText, setReviewText] = useState('');
   const [rating, setRating] = useState(5);
   const [submitting, setSubmitting] = useState(false);
-  const { address } = useWeb3();
+  const { address } = mockUser;
   const { toast } = useToast();
   
   const mockReviews = [
@@ -43,8 +46,8 @@ export const DriverReviews: React.FC<DriverReviewsProps> = ({ reviewCount }) => 
   const handleSubmitReview = () => {
     if (!address) {
       toast({
-        title: "Authentication required",
-        description: "Please connect your wallet to leave a review.",
+        title: "Please sign in",
+        description: "Please sign in to leave a review.",
         variant: "destructive",
       });
       return;

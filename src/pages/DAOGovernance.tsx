@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { DocumentLayout } from '@/components/layout/DocumentLayout';
 import { 
@@ -11,7 +10,6 @@ import {
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/shared/Button";
-import { useWeb3 } from '@/hooks/useWeb3';
 import { toast } from '@/hooks/use-toast';
 import { 
   BarChart3, 
@@ -24,14 +22,20 @@ import {
   Vote
 } from 'lucide-react';
 
+// Mock user session
+const mockUser = {
+  address: 'user123',
+  connect: () => Promise.resolve()
+};
+
 const DAOGovernance = () => {
-  const { address, connect } = useWeb3();
+  const { address, connect } = mockUser;
 
   const handleVote = (proposalId: string, vote: 'for' | 'against') => {
     if (!address) {
       toast({
-        title: "Wallet not connected",
-        description: "Please connect your wallet to vote on proposals.",
+        title: "Please sign in",
+        description: "Please sign in to vote on proposals.",
         variant: "destructive",
       });
       return;
@@ -304,12 +308,12 @@ const DAOGovernance = () => {
 
         {!address && (
           <div className="mt-8 p-6 border border-border rounded-lg bg-muted/50">
-            <h3 className="text-lg font-medium mb-2">Connect Wallet to Participate</h3>
+            <h3 className="text-lg font-medium mb-2">Sign In to Participate</h3>
             <p className="mb-4 text-muted-foreground">
-              You need to connect your wallet and hold POOL tokens to vote on proposals or create new ones.
+              You need to sign in and hold POOL tokens to vote on proposals or create new ones.
             </p>
             <Button variant="primary" onClick={connect}>
-              Connect Wallet
+              Sign In
             </Button>
           </div>
         )}

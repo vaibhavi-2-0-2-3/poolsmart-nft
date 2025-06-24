@@ -1,17 +1,26 @@
+
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Navbar } from '@/components/layout/Navbar';
 import { Card } from '@/components/shared/Card';
 import { Button } from '@/components/shared/Button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Clock, MapPin, Users, Star, Wallet, Car } from 'lucide-react';
-import { useWeb3 } from '@/hooks/useWeb3';
+import { Calendar, Clock, MapPin, Users, Star, User, Car } from 'lucide-react';
 import { Ride, getUserRides, getRides } from '@/lib/firebase';
 import { Event, getUserRegisteredEvents } from '@/lib/eventsApi';
 import { useToast } from '@/hooks/use-toast';
 
+// Mock user session
+const mockUser = {
+  address: 'user123',
+  connect: () => Promise.resolve(),
+  userProfile: {
+    username: 'Demo User'
+  }
+};
+
 const Dashboard = () => {
-  const { address, connect, userProfile } = useWeb3();
+  const { address, connect, userProfile } = mockUser;
   const [activeTab, setActiveTab] = useState('bookings');
   const [myRides, setMyRides] = useState<Ride[]>([]);
   const [offeredRides, setOfferedRides] = useState<Ride[]>([]);
@@ -95,11 +104,11 @@ const Dashboard = () => {
     });
   };
 
-  const handleConnectWallet = async () => {
+  const handleSignIn = async () => {
     try {
       await connect();
     } catch (error) {
-      console.error("Error connecting wallet:", error);
+      console.error("Error signing in:", error);
     }
   };
   
@@ -111,17 +120,17 @@ const Dashboard = () => {
           <div className="container mx-auto px-4">
             <Card className="p-8 text-center">
               <Car className="h-12 w-12 text-brand-600 mx-auto mb-4" />
-              <h2 className="text-2xl font-semibold mb-4">Connect Your Wallet</h2>
+              <h2 className="text-2xl font-semibold mb-4">Sign In to Your Account</h2>
               <p className="text-muted-foreground mb-6">
-                Please connect your wallet to access your dashboard.
+                Please sign in to access your dashboard.
               </p>
               <div className="max-w-xs mx-auto">
                 <Button 
                   variant="primary"
-                  onClick={handleConnectWallet}
-                  iconLeft={<Wallet className="h-4 w-4" />}
+                  onClick={handleSignIn}
+                  iconLeft={<User className="h-4 w-4" />}
                 >
-                  Connect Wallet
+                  Sign In
                 </Button>
               </div>
             </Card>
@@ -168,11 +177,11 @@ const Dashboard = () => {
             <Card className="p-6 bg-brand-50 border-brand-100">
               <div className="flex items-center">
                 <div className="h-12 w-12 rounded-full bg-brand-100 flex items-center justify-center mr-4">
-                  <Wallet className="h-6 w-6 text-brand-600" />
+                  <User className="h-6 w-6 text-brand-600" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Wallet</h3>
-                  <p className="text-lg font-semibold">{address?.slice(0, 6)}...{address?.slice(-4)}</p>
+                  <h3 className="text-sm font-medium text-muted-foreground">User</h3>
+                  <p className="text-lg font-semibold">{userProfile?.username || 'Demo User'}</p>
                 </div>
               </div>
             </Card>
@@ -322,7 +331,7 @@ const Dashboard = () => {
                         <div className="mt-6 flex justify-between items-center">
                           <div>
                             <div className="text-xs text-muted-foreground">Price paid</div>
-                            <div className="text-lg font-semibold">{ride.price} ETH</div>
+                            <div className="text-lg font-semibold">${ride.price}</div>
                           </div>
                           
                           <Button variant="outline" size="sm">
@@ -348,7 +357,7 @@ const Dashboard = () => {
                   <Car className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <h2 className="text-xl font-semibold mb-4">No Offered Rides</h2>
                   <p className="text-muted-foreground mb-6">
-                    You haven't offered any rides yet. Share your journey and earn cryptocurrency!
+                    You haven't offered any rides yet. Share your journey and earn money!
                   </p>
                   <Button variant="primary" asChild>
                     <Link to="/rides">Offer a Ride</Link>
@@ -426,7 +435,7 @@ const Dashboard = () => {
                           <div className="flex items-center gap-4">
                             <div>
                               <div className="text-xs text-muted-foreground">Price</div>
-                              <div className="text-lg font-semibold">{ride.price} ETH</div>
+                              <div className="text-lg font-semibold">${ride.price}</div>
                             </div>
                             
                             <Button variant="outline" size="sm">

@@ -4,8 +4,13 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/shared/Button';
 import { ChevronLeft, Edit, CheckCircle } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { shortenAddress } from '@/lib/web3';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
+// Mock utility function
+const shortenAddress = (address: string) => {
+  if (!address) return '';
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+};
 
 interface DriverHeaderProps {
   userProfile: {
@@ -61,7 +66,7 @@ export const DriverHeader: React.FC<DriverHeaderProps> = ({
                 </div>
               </TooltipTrigger>
               <TooltipContent>
-                <p>{verified ? 'Verified driver' : 'Driver wallet address'}</p>
+                <p>{verified ? 'Verified driver' : 'Driver address'}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>

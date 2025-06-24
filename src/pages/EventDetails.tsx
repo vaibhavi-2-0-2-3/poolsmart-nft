@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Navbar } from '@/components/layout/Navbar';
@@ -9,14 +10,19 @@ import { Event } from '@/lib/eventsApi';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { ChatDrawer } from '@/components/chat/ChatDrawer';
-import { useWeb3 } from '@/hooks/useWeb3';
+
+// Mock user session
+const mockUser = {
+  address: 'user123',
+  isConnected: true
+};
 
 const EventDetails = () => {
   const { eventId } = useParams<{ eventId: string }>();
   const [event, setEvent] = useState<Event | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRegistering, setIsRegistering] = useState(false);
-  const { address, isConnected } = useWeb3();
+  const { address, isConnected } = mockUser;
   const { toast } = useToast();
   const navigate = useNavigate();
   
@@ -53,8 +59,8 @@ const EventDetails = () => {
   const handleRegister = async () => {
     if (!isConnected) {
       toast({
-        title: "Wallet not connected",
-        description: "Please connect your wallet to register for this event.",
+        title: "Please sign in",
+        description: "Please sign in to register for this event.",
         variant: "destructive"
       });
       return;
@@ -190,13 +196,8 @@ const EventDetails = () => {
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 p-6 bg-muted rounded-lg">
                 <div>
                   <div className="text-lg font-medium">
-                    {event.price ? `${event.price} ETH` : 'Free'}
+                    {event.price ? `$${event.price}` : 'Free'}
                   </div>
-                  {event.price ? (
-                    <div className="text-sm text-muted-foreground">
-                      (Approximately ${(event.price * 2000).toFixed(2)} USD)
-                    </div>
-                  ) : null}
                 </div>
                 
                 {isUserRegistered() ? (

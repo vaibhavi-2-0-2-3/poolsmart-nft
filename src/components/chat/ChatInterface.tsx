@@ -1,12 +1,23 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send, User } from 'lucide-react';
-import { useWeb3 } from '@/hooks/useWeb3';
-import { shortenAddress } from '@/components/wallet/walletUtils';
+
+// Mock user utilities
+const shortenAddress = (address: string) => {
+  if (!address) return '';
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+};
+
+// Mock user session
+const mockUser = {
+  address: 'user123',
+  userProfile: {
+    username: 'Demo User'
+  }
+};
 
 type Message = {
   id: string;
@@ -24,7 +35,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ eventId, eventTitl
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { address, userProfile } = useWeb3();
+  const { address, userProfile } = mockUser;
   
   // Initial bot message when chat opens
   useEffect(() => {
@@ -187,11 +198,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ eventId, eventTitl
             <Send className="h-4 w-4" />
           </Button>
         </div>
-        {!address && (
-          <p className="text-xs text-muted-foreground mt-2">
-            Connect your wallet to chat with other attendees
-          </p>
-        )}
+        <p className="text-xs text-muted-foreground mt-2">
+          Chat with other attendees to coordinate carpooling
+        </p>
       </div>
     </div>
   );
