@@ -1,10 +1,9 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/shared/Button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Ride, createRide } from '@/lib/firebase';
+import { Ride, createRide, Driver } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { MapPin, Calendar, Clock, Users, DollarSign } from 'lucide-react';
 
@@ -13,14 +12,6 @@ interface CreateRideModalProps {
   onClose: () => void;
   onSuccess: () => void;
 }
-
-// Mock user session - in a real app this would come from authentication
-const mockUserProfile = {
-  id: "user-123",
-  fullName: "John Doe",
-  rating: 4.5,
-  avatar: "",
-};
 
 export const CreateRideModal: React.FC<CreateRideModalProps> = ({
   isOpen,
@@ -53,14 +44,24 @@ export const CreateRideModal: React.FC<CreateRideModalProps> = ({
     try {
       console.log("Creating ride with form data:", formData);
       
+      // Create a unique driver ID
+      const driverId = `driver_${Date.now()}`;
+      
       // Create a driver object
-      const driver = {
-        id: mockUserProfile.id,
-        name: mockUserProfile.fullName || formData.driverName || "Anonymous Driver",
-        rating: mockUserProfile.rating || 0,
-        avatar: mockUserProfile.avatar || "",
-        address: `user-${mockUserProfile.id}`,
-        reviewCount: mockUserProfile?.rating ? 5 : 0,
+      const driver: Driver = {
+        id: driverId,
+        name: formData.driverName || "Anonymous Driver",
+        rating: 4.5,
+        avatar: "",
+        address: formData.driverEmail,
+        reviewCount: 0,
+        bio: `New driver offering rides from ${formData.fromLocation}`,
+        carModel: "Not specified",
+        carColor: "Not specified",
+        licensePlate: "Not specified",
+        joinDate: new Date().toISOString(),
+        totalRides: 0,
+        verified: false,
       };
       
       // Create ride object with correct structure
@@ -68,7 +69,7 @@ export const CreateRideModal: React.FC<CreateRideModalProps> = ({
         driver,
         departure: {
           location: formData.fromLocation,
-          time: `${formData.departureDate}T${formData.departureTime}`,
+          time: `${formData.departureDate}T${formData.departureTime}:00Z`,
         },
         destination: {
           location: formData.toLocation,
@@ -80,16 +81,16 @@ export const CreateRideModal: React.FC<CreateRideModalProps> = ({
         verified: true,
       };
       
-      console.log("Submitting ride to createRide function:", JSON.stringify(ride));
+      console.log("Submitting ride to Firebase:", JSON.stringify(ride));
       
-      // Save ride to database
+      // Save ride to Firebase
       const rideId = await createRide(ride);
       console.log("Ride created with ID:", rideId);
       
       if (rideId) {
         toast({
           title: "Ride created",
-          description: "Your ride has been successfully created",
+          description: "Your ride has been successfully created and stored in Firebase",
         });
         
         // Reset form

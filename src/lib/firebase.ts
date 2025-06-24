@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, doc, getDoc, addDoc, updateDoc } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, doc, getDoc, addDoc, updateDoc, query, where } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -123,24 +123,110 @@ const mockRides: Ride[] = [
 ];
 
 export const getRides = async (): Promise<Ride[]> => {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 500));
-  return mockRides;
+  try {
+    console.log("Fetching rides from Firebase...");
+    const ridesCollection = collection(db, 'rides');
+    const ridesSnapshot = await getDocs(ridesCollection);
+    
+    if (ridesSnapshot.empty) {
+      console.log("No rides found in Firebase, returning mock data");
+      return mockRides;
+    }
+    
+    const rides = ridesSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as Ride[];
+    
+    console.log("Found rides in Firebase:", rides.length);
+    return rides;
+  } catch (error) {
+    console.error("Error fetching rides from Firebase:", error);
+    return mockRides;
+  }
 };
 
 export const getRideById = async (id: string): Promise<Ride | null> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
-  return mockRides.find(ride => ride.id === id) || null;
+  try {
+    const rideDoc = await getDoc(doc(db, 'rides', id));
+    if (rideDoc.exists()) {
+      return { id: rideDoc.id, ...rideDoc.data() } as Ride;
+    }
+    // Fallback to mock data
+    return mockRides.find(ride => ride.id === id) || null;
+  } catch (error) {
+    console.error("Error fetching ride by ID:", error);
+    return mockRides.find(ride => ride.id === id) || null;
+  }
 };
 
 export const createRide = async (rideData: Omit<Ride, 'id'>): Promise<string> => {
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  const newRide: Ride = {
-    ...rideData,
-    id: `ride${Date.now()}`,
-  };
-  mockRides.push(newRide);
-  return newRide.id;
+  try {
+    console.log("Creating ride in Firebase:", rideData);
+    const ridesCollection = collection(db, 'rides');
+    const docRef = await addDoc(ridesCollection, rideData);
+    console.log("Ride created with ID:", docRef.id);
+    
+    // Also create/update the driver in Firebase
+    await createOrUpdateDriver(rideData.driver);
+    
+    return docRef.id;
+  } catch (error) {
+    console.error("Error creating ride in Firebase:", error);
+    // Fallback to mock behavior
+    const newRide: Ride = {
+      ...rideData,
+      id: `ride${Date.now()}`,
+    };
+    mockRides.push(newRide);
+    return newRide.id;
+  }
+};
+
+export const createOrUpdateDriver = async (driver: Driver): Promise<void> => {
+  try {
+    console.log("Creating/updating driver in Firebase:", driver);
+    const driversCollection = collection(db, 'drivers');
+    
+    // Check if driver already exists
+    const driverQuery = query(driversCollection, where('id', '==', driver.id));
+    const driverSnapshot = await getDocs(driverQuery);
+    
+    if (driverSnapshot.empty) {
+      // Create new driver
+      await addDoc(driversCollection, driver);
+      console.log("Driver created in Firebase");
+    } else {
+      // Update existing driver
+      const driverDocRef = driverSnapshot.docs[0].ref;
+      await updateDoc(driverDocRef, driver);
+      console.log("Driver updated in Firebase");
+    }
+  } catch (error) {
+    console.error("Error creating/updating driver:", error);
+  }
+};
+
+export const getDriverById = async (driverId: string): Promise<Driver | null> => {
+  try {
+    console.log("Fetching driver from Firebase:", driverId);
+    const driversCollection = collection(db, 'drivers');
+    const driverQuery = query(driversCollection, where('id', '==', driverId));
+    const driverSnapshot = await getDocs(driverQuery);
+    
+    if (!driverSnapshot.empty) {
+      const driverData = driverSnapshot.docs[0].data() as Driver;
+      console.log("Found driver in Firebase:", driverData);
+      return driverData;
+    }
+    
+    // Fallback to mock data
+    console.log("Driver not found in Firebase, checking mock data");
+    return mockDrivers.find(driver => driver.id === driverId) || null;
+  } catch (error) {
+    console.error("Error fetching driver:", error);
+    return mockDrivers.find(driver => driver.id === driverId) || null;
+  }
 };
 
 export const bookRide = async (rideId: string, userId: string): Promise<boolean> => {
@@ -160,11 +246,6 @@ export const bookRide = async (rideId: string, userId: string): Promise<boolean>
 export const getUserRides = async (userId: string): Promise<Ride[]> => {
   await new Promise(resolve => setTimeout(resolve, 300));
   return mockRides.filter(ride => ride.passengers?.includes(userId));
-};
-
-export const getDriverById = async (driverId: string): Promise<Driver | null> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
-  return mockDrivers.find(driver => driver.id === driverId) || null;
 };
 
 export const startRide = async (rideId: string): Promise<boolean> => {
