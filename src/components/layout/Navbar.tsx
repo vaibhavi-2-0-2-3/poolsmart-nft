@@ -2,19 +2,14 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "../shared/Button";
-import { WalletConnect } from "../wallet/WalletConnect";
 import { Menu, X } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { WalletDropdown } from "../wallet/WalletDropdown";
-import { useWeb3 } from "@/hooks/useWeb3";
 import { ThemeToggle } from "./ThemeToggle";
 
 export function Navbar() {
   const isMobile = useIsMobile();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { address, disconnect } = useWeb3();
   const location = useLocation();
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const navLinks = [
     { name: "Home", path: "/" },
@@ -30,18 +25,6 @@ export function Navbar() {
   };
 
   const closeMenu = () => setIsMenuOpen(false);
-  
-  const handleDisconnect = () => {
-    console.log("Disconnecting wallet in Navbar");
-    disconnect();
-    setIsDropdownOpen(false);
-  };
-  
-  const handleCopyAddress = () => {
-    if (address) {
-      navigator.clipboard.writeText(address);
-    }
-  };
 
   return (
     <header className="sticky top-0 z-10 w-full backdrop-blur-sm bg-background/80 border-b border-border">
@@ -88,19 +71,6 @@ export function Navbar() {
                     </Link>
                   ))}
                 </nav>
-                <div className="mt-6">
-                  {address ? (
-                    <WalletDropdown
-                      address={address}
-                      balance={'0.00'}
-                      userProfile={null}
-                      onDisconnect={handleDisconnect}
-                      onCopyAddress={handleCopyAddress}
-                    />
-                  ) : (
-                    <WalletConnect />
-                  )}
-                </div>
               </div>
             )}
           </>
@@ -121,34 +91,6 @@ export function Navbar() {
             </nav>
             <div className="pl-6 border-l border-border flex items-center gap-4">
               <ThemeToggle />
-              {address ? (
-                <div className="relative wallet-dropdown">
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    className="border-brand-200 hover:border-brand-300 flex items-center gap-2"
-                    aria-expanded={isDropdownOpen}
-                    aria-haspopup="true"
-                  >
-                    <span className="flex items-center">
-                      <span className="h-2 w-2 rounded-full bg-green-500 mr-2"></span>
-                      <span>{address.slice(0, 6)}...{address.slice(-4)}</span>
-                    </span>
-                  </Button>
-                  
-                  {isDropdownOpen && (
-                    <WalletDropdown
-                      address={address}
-                      balance={'0.00'}
-                      userProfile={null}
-                      onDisconnect={handleDisconnect}
-                      onCopyAddress={handleCopyAddress}
-                    />
-                  )}
-                </div>
-              ) : (
-                <WalletConnect />
-              )}
             </div>
           </div>
         )}

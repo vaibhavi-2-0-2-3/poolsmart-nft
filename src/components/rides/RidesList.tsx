@@ -1,13 +1,12 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { getRides, Ride, bookRide } from '@/lib/firebase';
 import { Card } from '@/components/shared/Card';
-import { Car, Clock, MapPin, Users, DollarSign, Star } from 'lucide-react';
+import { Car, Clock, MapPin, Users, Star } from 'lucide-react';
 import { Button } from '@/components/shared/Button';
 import { RideActions } from './RideActions';
-import { useWeb3 } from '@/hooks/useWeb3';
 import { useToast } from '@/hooks/use-toast';
 import { Link } from 'react-router-dom';
-import { PaymentModal } from './PaymentModal';
 import { TrackDriverButton } from './TrackDriverButton';
 import { LiveTracking } from '../tracking/LiveTracking';
 
@@ -25,12 +24,12 @@ interface RidesListProps {
 const RidesList: React.FC<RidesListProps> = ({ searchParams = {}, refreshTrigger = 0 }) => {
   const [rides, setRides] = useState<Ride[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedRide, setSelectedRide] = useState<Ride | null>(null);
-  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [bookingInProgress, setBookingInProgress] = useState<string | null>(null);
-  const { address, connect, userProfile } = useWeb3();
   const { toast } = useToast();
   const [trackingRideId, setTrackingRideId] = useState<string | null>(null);
+
+  // Mock user session - in a real app this would come from authentication
+  const mockUserId = 'user123';
 
   const fetchRides = useCallback(async () => {
     setLoading(true);
@@ -88,41 +87,17 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams = {}, refreshTrigger
     }
   }, [searchParams, refreshTrigger, toast]);
   
-  // This effect runs whenever refreshTrigger changes
   useEffect(() => {
     console.log("RidesList: useEffect triggered with refreshTrigger:", refreshTrigger);
     fetchRides();
   }, [fetchRides, refreshTrigger]);
 
   const handleStatusChange = async () => {
-    // Refresh rides when status changes
     fetchRides();
   };
 
-  const handleConnect = async () => {
-    try {
-      await connect();
-    } catch (error) {
-      console.error("Connection error:", error);
-      toast({
-        title: "Connection error",
-        description: "Failed to connect wallet. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
   const handleBookRide = async (ride: Ride) => {
-    if (!address) {
-      toast({
-        title: "Authentication required",
-        description: "Please connect your wallet first.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (address === ride.driver.address) {
+    if (mockUserId === ride.driver.id) {
       toast({
         title: "Cannot book your own ride",
         description: "You cannot book a ride that you are driving.",
@@ -134,7 +109,7 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams = {}, refreshTrigger
     setBookingInProgress(ride.id);
     
     try {
-      const success = await bookRide(ride.id, address);
+      const success = await bookRide(ride.id, mockUserId);
       
       if (success) {
         toast({
@@ -142,7 +117,6 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams = {}, refreshTrigger
           description: "You have successfully booked this ride. View the driver's profile for more details.",
         });
         
-        // Refresh the rides list
         fetchRides();
       } else {
         toast({
@@ -161,13 +135,6 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams = {}, refreshTrigger
     } finally {
       setBookingInProgress(null);
     }
-  };
-
-  const handlePaymentSuccess = () => {
-    // Refresh rides after payment
-    handleStatusChange();
-    setPaymentModalOpen(false);
-    setSelectedRide(null);
   };
 
   const toggleTracking = (ride: Ride) => {
@@ -208,7 +175,7 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams = {}, refreshTrigger
   return (
     <div className="mt-6 space-y-4">
       {rides.map((ride) => {
-        const isUserPassenger = ride.passengers?.includes(address || '');
+        const isUserPassenger = ride.passengers?.includes(mockUserId);
         const isTracking = trackingRideId === ride.id;
         
         return (
@@ -234,11 +201,11 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams = {}, refreshTrigger
 
                 <div className="flex items-center">
                   <div className="text-xl font-semibold mr-4">
-                    {ride.price.toFixed(3)} ETH
+                    ${ride.price.toFixed(2)}
                   </div>
                   <RideActions 
                     ride={ride} 
-                    isDriver={address === ride.driver.address}
+                    isDriver={mockUserId === ride.driver.id}
                     isPassenger={isUserPassenger}
                     onStatusChange={handleStatusChange}
                   />
@@ -263,41 +230,31 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams = {}, refreshTrigger
                   <span>{ride.seatsAvailable} seats available</span>
                 </div>
                 <div className="flex justify-end">
-                  {!address ? (
+                  {mockUserId !== ride.driver.id && ride.status === 'active' && !isUserPassenger ? (
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={handleConnect}
+                      onClick={() => handleBookRide(ride)}
+                      disabled={bookingInProgress === ride.id}
                     >
-                      Connect Wallet to Book
+                      {bookingInProgress === ride.id ? 'Booking...' : 'Book Ride'}
                     </Button>
-                  ) : (
-                    address !== ride.driver.address && ride.status === 'active' && !isUserPassenger ? (
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleBookRide(ride)}
-                        disabled={bookingInProgress === ride.id}
-                      >
-                        {bookingInProgress === ride.id ? 'Booking...' : 'Book Ride'}
-                      </Button>
-                    ) : isUserPassenger ? (
-                      <div className="flex gap-2">
-                        <Link to={`/driver/${ride.driver.id}`}>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                          >
-                            View Driver
-                          </Button>
-                        </Link>
-                        <TrackDriverButton
-                          isTracking={isTracking}
-                          onClick={() => toggleTracking(ride)}
-                        />
-                      </div>
-                    ) : null
-                  )}
+                  ) : isUserPassenger ? (
+                    <div className="flex gap-2">
+                      <Link to={`/driver/${ride.driver.id}`}>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                        >
+                          View Driver
+                        </Button>
+                      </Link>
+                      <TrackDriverButton
+                        isTracking={isTracking}
+                        onClick={() => toggleTracking(ride)}
+                      />
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </Card>
@@ -317,16 +274,6 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams = {}, refreshTrigger
           </div>
         );
       })}
-      
-      {selectedRide && (
-        <PaymentModal
-          isOpen={paymentModalOpen}
-          onClose={() => setPaymentModalOpen(false)}
-          rideId={selectedRide.id}
-          amount={selectedRide.price}
-          onSuccess={handlePaymentSuccess}
-        />
-      )}
     </div>
   );
 };

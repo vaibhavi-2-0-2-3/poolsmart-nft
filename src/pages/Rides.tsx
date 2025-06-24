@@ -3,14 +3,10 @@ import React, { useState, useEffect } from 'react';
 import { Navbar } from '@/components/layout/Navbar';
 import RidesList from '@/components/rides/RidesList';
 import { RidesFilter } from '@/components/rides/RidesFilter';
-import { useWeb3 } from '@/hooks/useWeb3';
-import { Ride, createRide, getUserProfile } from '@/lib/firebase';
-import { PaymentModal } from '@/components/rides/PaymentModal';
-import { Car, CalendarClock, MapPin, CreditCard, Clock, Users, Search } from 'lucide-react';
+import { Car, CalendarClock, MapPin, Search } from 'lucide-react';
 import { Button } from '@/components/shared/Button';
 import { Card } from '@/components/shared/Card';
 import { toast } from '@/hooks/use-toast';
-import { UserRegistrationModal, UserProfileData } from '@/components/profile/UserRegistrationModal';
 import { Input } from '@/components/ui/input';
 import { CreateRideModal } from '@/components/rides/CreateRideModal';
 
@@ -23,7 +19,6 @@ type SearchParams = {
 };
 
 const Rides = () => {
-  const { address, connect, userProfile, completeRegistration } = useWeb3();
   const [searchParams, setSearchParams] = useState<SearchParams>({
     from: '',
     to: '',
@@ -31,58 +26,21 @@ const Rides = () => {
     time: '',
     seats: '1',
   });
-  const [showRegistration, setShowRegistration] = useState(false);
-  const [pendingAddress, setPendingAddress] = useState<string | null>(null);
   const [filterDialogOpen, setFilterDialogOpen] = useState(false);
   const [showCreateRideForm, setShowCreateRideForm] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [isWalletConnecting, setIsWalletConnecting] = useState(false);
 
   const handleSearch = (params: SearchParams) => {
     setSearchParams(params);
   };
 
-  const handleConnectWallet = async () => {
-    try {
-      setIsWalletConnecting(true);
-      await connect(); // Simply connect wallet, no registration check
-    } catch (error) {
-      console.error("Connection error:", error);
-      toast({
-        title: "Connection error",
-        description: "Failed to connect wallet. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsWalletConnecting(false);
-    }
-  };
-
-  const handleCompleteRegistration = (userData: UserProfileData) => {
-    if (pendingAddress && completeRegistration) {
-      completeRegistration(userData);
-      setShowRegistration(false);
-      setPendingAddress(null);
-
-      // Refresh trigger to re-render components
-      setRefreshTrigger(prev => prev + 1);
-
-      toast({
-        title: "Registration completed",
-        description: "Your profile has been created successfully!",
-      });
-    }
-  };
-
   const handleCreateRideSuccess = () => {
     console.log("Rides page: Ride created successfully!");
 
-    // Force a refresh of the rides list by updating refreshTrigger
     const newTrigger = refreshTrigger + 1;
     console.log(`Rides page: Updating refresh trigger from ${refreshTrigger} to ${newTrigger}`);
     setRefreshTrigger(newTrigger);
 
-    // Close the create ride form
     setShowCreateRideForm(false);
 
     toast({
@@ -91,7 +49,6 @@ const Rides = () => {
     });
   };
 
-  // Add an effect to log whenever refreshTrigger changes
   useEffect(() => {
     console.log("Rides page: refreshTrigger changed to", refreshTrigger);
   }, [refreshTrigger]);
@@ -163,42 +120,20 @@ const Rides = () => {
                 onOpenChange={setFilterDialogOpen}
                 onApplyFilters={(filterOptions) => {
                   console.log('Filter options:', filterOptions);
-                  // Apply filters to rides
                 }}
               />
 
-              {!address ? (
-                <Card className="mt-6 p-8 text-center">
-                  <Car className="h-12 w-12 text-brand-600 mx-auto mb-4" />
-                  <h2 className="text-2xl font-semibold mb-4">Connect Your Wallet</h2>
-                  <p className="text-muted-foreground mb-6">
-                    To book a ride or offer your own, please connect your wallet first.
-                  </p>
-                  <div className="max-w-xs mx-auto">
-                    <Button
-                      variant="primary"
-                      onClick={handleConnectWallet}
-                      iconLeft={<CreditCard className="h-4 w-4" />}
-                      className="w-full"
-                      disabled={isWalletConnecting}
-                    >
-                      {isWalletConnecting ? 'Connecting...' : 'Connect Wallet'}
-                    </Button>
-                  </div>
-                </Card>
-              ) : (
-                <RidesList
-                  searchParams={searchParams}
-                  refreshTrigger={refreshTrigger}
-                />
-              )}
+              <RidesList
+                searchParams={searchParams}
+                refreshTrigger={refreshTrigger}
+              />
             </div>
 
             <div className="lg:col-span-1">
               <Card className="p-6">
                 <h3 className="text-xl font-semibold mb-4">Offer a Ride</h3>
                 <p className="text-muted-foreground mb-6">
-                  Share your journey and earn cryptocurrency.
+                  Share your journey and earn money.
                 </p>
                 <Button
                   variant="secondary"

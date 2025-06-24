@@ -1,12 +1,9 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/shared/Button';
-import { Play, Square, CreditCard, ThumbsUp } from 'lucide-react';
+import { Play, Square } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { startRide as startRideWeb3, endRide as endRideWeb3 } from '@/lib/web3';
 import { startRide, endRide, Ride } from '@/lib/firebase';
-import { PaymentModal } from './PaymentModal';
-import { useWeb3 } from '@/hooks/useWeb3';
 
 interface RideActionsProps {
   ride: Ride;
@@ -22,33 +19,23 @@ export const RideActions: React.FC<RideActionsProps> = ({
   onStatusChange,
 }) => {
   const [loading, setLoading] = useState(false);
-  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const { toast } = useToast();
-  const { address } = useWeb3();
   
   const handleStartRide = async () => {
     if (!isDriver) return;
     
     setLoading(true);
     try {
-      // Call blockchain function
-      const blockchainSuccess = await startRideWeb3(ride.id);
+      const dbSuccess = await startRide(ride.id);
       
-      if (blockchainSuccess) {
-        // Update database
-        const dbSuccess = await startRide(ride.id);
-        
-        if (dbSuccess) {
-          toast({
-            title: "Ride started",
-            description: "Your ride has been started successfully.",
-          });
-          onStatusChange();
-        } else {
-          throw new Error("Database update failed");
-        }
+      if (dbSuccess) {
+        toast({
+          title: "Ride started",
+          description: "Your ride has been started successfully.",
+        });
+        onStatusChange();
       } else {
-        throw new Error("Blockchain transaction failed");
+        throw new Error("Database update failed");
       }
     } catch (error) {
       console.error("Error starting ride:", error);
@@ -67,24 +54,16 @@ export const RideActions: React.FC<RideActionsProps> = ({
     
     setLoading(true);
     try {
-      // Call blockchain function
-      const blockchainSuccess = await endRideWeb3(ride.id);
+      const dbSuccess = await endRide(ride.id);
       
-      if (blockchainSuccess) {
-        // Update database
-        const dbSuccess = await endRide(ride.id);
-        
-        if (dbSuccess) {
-          toast({
-            title: "Ride completed",
-            description: "Your ride has been completed successfully.",
-          });
-          onStatusChange();
-        } else {
-          throw new Error("Database update failed");
-        }
+      if (dbSuccess) {
+        toast({
+          title: "Ride completed",
+          description: "Your ride has been completed successfully.",
+        });
+        onStatusChange();
       } else {
-        throw new Error("Blockchain transaction failed");
+        throw new Error("Database update failed");
       }
     } catch (error) {
       console.error("Error ending ride:", error);
@@ -96,10 +75,6 @@ export const RideActions: React.FC<RideActionsProps> = ({
     } finally {
       setLoading(false);
     }
-  };
-  
-  const handlePaymentSuccess = () => {
-    onStatusChange();
   };
   
   // Driver controls for active rides
@@ -143,30 +118,6 @@ export const RideActions: React.FC<RideActionsProps> = ({
         </div>
       );
     }
-  }
-  
-  // Passenger controls for completed rides that need payment
-  if (!isDriver && isPassenger && address && ride.status === 'completed' && ride.paymentStatus === 'pending') {
-    return (
-      <>
-        <Button
-          variant="primary"
-          size="sm"
-          iconLeft={<CreditCard className="h-4 w-4" />}
-          onClick={() => setPaymentModalOpen(true)}
-        >
-          Pay Now
-        </Button>
-        
-        <PaymentModal
-          isOpen={paymentModalOpen}
-          onClose={() => setPaymentModalOpen(false)}
-          rideId={ride.id}
-          amount={ride.price}
-          onSuccess={handlePaymentSuccess}
-        />
-      </>
-    );
   }
   
   // Status indicators for other states

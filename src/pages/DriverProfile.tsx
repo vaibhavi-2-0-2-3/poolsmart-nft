@@ -1,22 +1,19 @@
+
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Navbar } from '@/components/layout/Navbar';
 import { Card } from '@/components/shared/Card';
 import { Button } from '@/components/shared/Button';
 import { ChevronLeft, MapPin } from 'lucide-react';
-import { getDriverById, Driver, getRides, Ride as FirebaseRide, getUserProfile } from '@/lib/firebase';
+import { getDriverById, Driver, getRides, Ride as FirebaseRide } from '@/lib/firebase';
 import { ContactDriverModal } from '@/components/driver/ContactDriverModal';
 import { ProfileEditModal } from '@/components/profile/ProfileEditModal';
 import { DriverHeader } from '@/components/driver/DriverHeader';
 import { DriverProfileCard } from '@/components/driver/DriverProfileCard';
 import { DriverRidesList } from '@/components/driver/DriverRidesList';
 import { DriverReviews } from '@/components/driver/DriverReviews';
-import { useWeb3 } from '@/hooks/useWeb3';
 import { useToast } from '@/hooks/use-toast';
 import { LiveTracking } from '@/components/tracking/LiveTracking';
-
-// We're explicitly removing the import from db.ts to avoid type conflicts
-// import { Ride as DbRide } from '@/lib/db';
 
 const DriverProfile = () => {
   const { driverId } = useParams<{ driverId: string }>();
@@ -27,15 +24,16 @@ const DriverProfile = () => {
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [profileEditModalOpen, setProfileEditModalOpen] = useState(false);
   const [trackingRideId, setTrackingRideId] = useState<string | null>(null);
-  const { address, userProfile } = useWeb3();
   const { toast } = useToast();
   const [userProfile2, setUserProfile2] = useState({
     username: 'User',
     avatar: ''
   });
+
+  // Mock user session
+  const mockUserId = 'user123';
   
   useEffect(() => {
-    // Check if we have user profile in localStorage
     const savedProfile = localStorage.getItem('userProfile');
     if (savedProfile) {
       setUserProfile2(JSON.parse(savedProfile));
@@ -44,30 +42,25 @@ const DriverProfile = () => {
     if (driverId) {
       loadDriverData(driverId);
     }
-  }, [driverId, address]);
+  }, [driverId]);
   
   const loadDriverData = async (id: string) => {
     setLoading(true);
     
     try {
-      // Get driver details
       const driverData = await getDriverById(id);
       
       if (driverData) {
         setDriver(driverData);
         
-        // Get all rides by this driver
         const allRides = await getRides();
         const filteredDriverRides = allRides.filter(ride => ride.driver.id === id);
         setDriverRides(filteredDriverRides);
 
-        // If user is logged in, get their booked rides with this driver
-        if (address) {
-          const userBookedRides = filteredDriverRides.filter(
-            ride => ride.passengers?.includes(address)
-          );
-          setUserRides(userBookedRides);
-        }
+        const userBookedRides = filteredDriverRides.filter(
+          ride => ride.passengers?.includes(mockUserId)
+        );
+        setUserRides(userBookedRides);
       }
     } catch (error) {
       console.error("Error loading driver data:", error);
@@ -83,21 +76,10 @@ const DriverProfile = () => {
 
   const handleProfileSave = (data: { username: string; avatar: string }) => {
     setUserProfile2(data);
-    
-    // Save to localStorage for persistence
     localStorage.setItem('userProfile', JSON.stringify(data));
   };
 
   const handleContactDriver = () => {
-    if (!address) {
-      toast({
-        title: "Authentication required",
-        description: "Please connect your wallet to contact the driver.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
     setContactModalOpen(true);
   };
   
@@ -237,14 +219,12 @@ const DriverProfile = () => {
         </div>
       </main>
       
-      {/* Contact Driver Modal */}
       <ContactDriverModal 
         driverName={driver?.name || ''}
         isOpen={contactModalOpen}
         onClose={() => setContactModalOpen(false)}
       />
       
-      {/* Profile Edit Modal */}
       <ProfileEditModal 
         isOpen={profileEditModalOpen}
         onClose={() => setProfileEditModalOpen(false)}
