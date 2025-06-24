@@ -4,7 +4,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/shared/Button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useWeb3 } from '@/hooks/useWeb3';
 import { Ride, createRide } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { MapPin, Calendar, Clock, Users, DollarSign } from 'lucide-react';
@@ -15,12 +14,19 @@ interface CreateRideModalProps {
   onSuccess: () => void;
 }
 
+// Mock user session - in a real app this would come from authentication
+const mockUserProfile = {
+  id: "user-123",
+  fullName: "John Doe",
+  rating: 4.5,
+  avatar: "",
+};
+
 export const CreateRideModal: React.FC<CreateRideModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
 }) => {
-  const { address, userProfile } = useWeb3();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -29,7 +35,7 @@ export const CreateRideModal: React.FC<CreateRideModalProps> = ({
     departureDate: '',
     departureTime: '',
     seatsAvailable: '1',
-    price: '0.01',
+    price: '25',
     driverName: '',
     driverEmail: '',
   });
@@ -48,21 +54,13 @@ export const CreateRideModal: React.FC<CreateRideModalProps> = ({
       console.log("Creating ride with form data:", formData);
       
       // Create a driver object
-      const driver = address && userProfile ? {
-        id: userProfile.id,
-        name: userProfile.fullName,
-        rating: userProfile.rating || 0,
-        avatar: userProfile.avatar,
-        address: address,
-        // Use optional chaining to safely access reviewCount or default to 0
-        reviewCount: userProfile?.rating ? 5 : 0, // Default to 5 reviews if they have a rating, otherwise 0
-      } : {
-        id: "temp-" + Date.now().toString(),
-        name: formData.driverName || "Anonymous Driver",
-        rating: 0,
-        avatar: "",
-        address: address || "anonymous-" + Date.now(),
-        reviewCount: 0, // Add reviewCount property
+      const driver = {
+        id: mockUserProfile.id,
+        name: mockUserProfile.fullName || formData.driverName || "Anonymous Driver",
+        rating: mockUserProfile.rating || 0,
+        avatar: mockUserProfile.avatar || "",
+        address: `user-${mockUserProfile.id}`,
+        reviewCount: mockUserProfile?.rating ? 5 : 0,
       };
       
       // Create ride object with correct structure
@@ -79,7 +77,7 @@ export const CreateRideModal: React.FC<CreateRideModalProps> = ({
         seatsAvailable: parseInt(formData.seatsAvailable),
         status: "active",
         passengers: [],
-        verified: true, // Add the required verified property
+        verified: true,
       };
       
       console.log("Submitting ride to createRide function:", JSON.stringify(ride));
@@ -101,7 +99,7 @@ export const CreateRideModal: React.FC<CreateRideModalProps> = ({
           departureDate: '',
           departureTime: '',
           seatsAvailable: '1',
-          price: '0.01',
+          price: '25',
           driverName: '',
           driverEmail: '',
         });
@@ -133,34 +131,30 @@ export const CreateRideModal: React.FC<CreateRideModalProps> = ({
         
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <div className="space-y-4">
-            {!address && (
-              <>
-                <div className="grid gap-2">
-                  <Label htmlFor="driverName">Your Name</Label>
-                  <Input
-                    id="driverName"
-                    name="driverName"
-                    placeholder="Enter your name"
-                    value={formData.driverName}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-                
-                <div className="grid gap-2">
-                  <Label htmlFor="driverEmail">Your Email</Label>
-                  <Input
-                    id="driverEmail"
-                    name="driverEmail"
-                    type="email"
-                    placeholder="Enter your email"
-                    value={formData.driverEmail}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-              </>
-            )}
+            <div className="grid gap-2">
+              <Label htmlFor="driverName">Your Name</Label>
+              <Input
+                id="driverName"
+                name="driverName"
+                placeholder="Enter your name"
+                value={formData.driverName}
+                onChange={handleChange}
+                required
+              />
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="driverEmail">Your Email</Label>
+              <Input
+                id="driverEmail"
+                name="driverEmail"
+                type="email"
+                placeholder="Enter your email"
+                value={formData.driverEmail}
+                onChange={handleChange}
+                required
+              />
+            </div>
             
             <div className="grid gap-2">
               <Label htmlFor="fromLocation">From</Label>
@@ -248,15 +242,15 @@ export const CreateRideModal: React.FC<CreateRideModalProps> = ({
               </div>
               
               <div className="grid gap-2">
-                <Label htmlFor="price">Price (ETH)</Label>
+                <Label htmlFor="price">Price ($)</Label>
                 <div className="relative">
                   <DollarSign className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="price"
                     name="price"
                     type="number"
-                    step="0.001"
-                    min="0.001"
+                    step="1"
+                    min="1"
                     className="pl-10"
                     value={formData.price}
                     onChange={handleChange}
