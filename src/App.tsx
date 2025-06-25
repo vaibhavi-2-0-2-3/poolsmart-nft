@@ -7,6 +7,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import Index from "./pages/Index";
 import Rides from "./pages/Rides";
+import RideDetails from "./pages/RideDetails";
 import Events from "./pages/Events";
 import EventDetails from "./pages/EventDetails";
 import Dashboard from "./pages/Dashboard";
@@ -31,6 +32,7 @@ function App() {
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/rides" element={<Rides />} />
+                <Route path="/ride/:id" element={<RideDetails />} />
                 <Route path="/events" element={<Events />} />
                 <Route path="/events/:id" element={<EventDetails />} />
                 <Route path="/dashboard" element={<Dashboard />} />

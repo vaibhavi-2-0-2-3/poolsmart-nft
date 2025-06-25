@@ -1,0 +1,328 @@
+
+import React, { useState, useEffect } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { Navbar } from '@/components/layout/Navbar';
+import { Card } from '@/components/shared/Card';
+import { Button } from '@/components/shared/Button';
+import { ChevronLeft, MapPin, Clock, Users, DollarSign, Shield, ExternalLink, CreditCard } from 'lucide-react';
+import { getRides, createBooking, SupabaseRide } from '@/lib/supabase';
+import { useAuth } from '@/hooks/useAuth';
+import { ProtectedAction } from '@/components/auth/ProtectedAction';
+import { useToast } from '@/hooks/use-toast';
+
+const RideDetails = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [ride, setRide] = useState<SupabaseRide | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [booking, setBooking] = useState(false);
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    loadRideDetails();
+  }, [id]);
+
+  const loadRideDetails = async () => {
+    if (!id) return;
+    
+    try {
+      setLoading(true);
+      const rides = await getRides();
+      const foundRide = rides.find(r => r.id === id);
+      setRide(foundRide || null);
+    } catch (error) {
+      console.error("Error loading ride details:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load ride details. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBookRide = async () => {
+    if (!ride || !user) return;
+
+    setBooking(true);
+    try {
+      await createBooking(ride.id);
+      toast({
+        title: "Ride booked successfully!",
+        description: "You will receive a confirmation email shortly.",
+      });
+      navigate('/dashboard');
+    } catch (error) {
+      console.error("Error booking ride:", error);
+      toast({
+        title: "Booking failed",
+        description: "Unable to book this ride. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setBooking(false);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long', 
+      day: 'numeric' 
+    });
+  };
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+  };
+
+  const getGoogleMapsUrl = (origin: string, destination: string) => {
+    return `https://www.google.com/maps/dir/${encodeURIComponent(origin)}/${encodeURIComponent(destination)}`;
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <main className="flex-grow pt-24 pb-16">
+          <div className="container mx-auto px-4">
+            <div className="flex justify-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-600"></div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (!ride) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <main className="flex-grow pt-24 pb-16">
+          <div className="container mx-auto px-4">
+            <Card className="p-8 text-center">
+              <h2 className="text-2xl font-semibold mb-4">Ride Not Found</h2>
+              <p className="text-muted-foreground mb-6">
+                We couldn't find the ride you were looking for.
+              </p>
+              <Button variant="outline" asChild>
+                <Link to="/rides">Back to Rides</Link>
+              </Button>
+            </Card>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  const isOwnRide = user?.id === ride.user_id;
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Navbar />
+      <main className="flex-grow pt-24 pb-16">
+        <div className="container mx-auto px-4 max-w-4xl">
+          <div className="mb-6">
+            <Button variant="ghost" asChild className="mb-4">
+              <Link to="/rides">
+                <ChevronLeft className="h-4 w-4 mr-2" />
+                Back to rides
+              </Link>
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+              {/* Route Information */}
+              <Card className="p-6">
+                <h1 className="text-2xl font-bold mb-6">Ride Details</h1>
+                
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                    <div className="flex items-center">
+                      <MapPin className="h-5 w-5 text-green-600 mr-3" />
+                      <div>
+                        <div className="font-medium">From</div>
+                        <div className="text-lg">{ride.origin}</div>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      asChild
+                    >
+                      <a
+                        href={`https://www.google.com/maps/search/${encodeURIComponent(ride.origin)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <ExternalLink className="h-4 w-4 mr-1" />
+                        Map
+                      </a>
+                    </Button>
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                    <div className="flex items-center">
+                      <MapPin className="h-5 w-5 text-blue-600 mr-3" />
+                      <div>
+                        <div className="font-medium">To</div>
+                        <div className="text-lg">{ride.destination}</div>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      asChild
+                    >
+                      <a
+                        href={`https://www.google.com/maps/search/${encodeURIComponent(ride.destination)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <ExternalLink className="h-4 w-4 mr-1" />
+                        Map
+                      </a>
+                    </Button>
+                  </div>
+
+                  <div className="p-4 bg-gray-50 dark:bg-gray-900/20 rounded-lg">
+                    <div className="flex items-center mb-2">
+                      <Clock className="h-5 w-5 text-gray-600 mr-3" />
+                      <div className="font-medium">Departure</div>
+                    </div>
+                    <div className="text-lg">{formatDate(ride.date)}</div>
+                    <div className="text-lg font-semibold">{formatTime(ride.date)}</div>
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    asChild
+                  >
+                    <a
+                      href={getGoogleMapsUrl(ride.origin, ride.destination)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      View Full Route on Google Maps
+                    </a>
+                  </Button>
+                </div>
+              </Card>
+
+              {/* Driver Information */}
+              <Card className="p-6">
+                <h3 className="text-xl font-semibold mb-4">Driver</h3>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div className="h-12 w-12 rounded-full bg-brand-100 flex items-center justify-center mr-4">
+                      <span className="text-brand-600 font-semibold text-lg">
+                        {ride.driver_name?.charAt(0) || 'D'}
+                      </span>
+                    </div>
+                    <div>
+                      <div className="font-semibold text-lg">{ride.driver_name || 'Anonymous Driver'}</div>
+                      <div className="text-sm text-muted-foreground">New driver</div>
+                    </div>
+                  </div>
+                  <Button variant="outline" asChild>
+                    <Link to={`/driver/${ride.user_id}`}>
+                      View Profile
+                    </Link>
+                  </Button>
+                </div>
+              </Card>
+            </div>
+
+            <div className="lg:col-span-1 space-y-6">
+              {/* Booking Card */}
+              <Card className="p-6">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <DollarSign className="h-5 w-5 text-green-600 mr-2" />
+                      <span className="font-medium">Price per person</span>
+                    </div>
+                    <span className="text-2xl font-bold">${ride.price}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <Users className="h-5 w-5 text-blue-600 mr-2" />
+                      <span className="font-medium">Available seats</span>
+                    </div>
+                    <span className="text-lg font-semibold">{ride.seats}</span>
+                  </div>
+
+                  {!isOwnRide && (
+                    <ProtectedAction
+                      requireAuth={true}
+                      fallback={
+                        <Button variant="primary" className="w-full" disabled>
+                          Sign in to Book
+                        </Button>
+                      }
+                    >
+                      <Button 
+                        variant="primary"
+                        className="w-full"
+                        onClick={handleBookRide}
+                        disabled={booking || ride.seats === 0}
+                      >
+                        {booking ? 'Booking...' : 
+                         ride.seats === 0 ? 'Fully Booked' : 'Start Booking'}
+                      </Button>
+                    </ProtectedAction>
+                  )}
+
+                  {isOwnRide && (
+                    <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                      <p className="text-sm text-amber-700 dark:text-amber-300 text-center">
+                        This is your ride
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </Card>
+
+              {/* Secure Payment */}
+              <Card className="p-6">
+                <div className="flex items-center mb-4">
+                  <Shield className="h-5 w-5 text-green-600 mr-2" />
+                  <h3 className="font-semibold">Secure Payment</h3>
+                </div>
+                <div className="space-y-3 text-sm text-muted-foreground">
+                  <div className="flex items-center">
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    <span>Encrypted payment processing</span>
+                  </div>
+                  <div className="flex items-center">
+                    <Shield className="h-4 w-4 mr-2" />
+                    <span>Booking protection guarantee</span>
+                  </div>
+                  <div className="flex items-center">
+                    <Clock className="h-4 w-4 mr-2" />
+                    <span>Free cancellation up to 24h</span>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+};
+
+export default RideDetails;

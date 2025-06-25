@@ -4,7 +4,7 @@ import { useParams, Link } from 'react-router-dom';
 import { Navbar } from '@/components/layout/Navbar';
 import { Card } from '@/components/shared/Card';
 import { Button } from '@/components/shared/Button';
-import { ChevronLeft, MapPin } from 'lucide-react';
+import { ChevronLeft, MapPin, Phone, Mail, CheckCircle, MessageCircle } from 'lucide-react';
 import { getDriverById, Driver, getRides, Ride as FirebaseRide } from '@/lib/firebase';
 import { ContactDriverModal } from '@/components/driver/ContactDriverModal';
 import { ProfileEditModal } from '@/components/profile/ProfileEditModal';
@@ -12,11 +12,13 @@ import { DriverHeader } from '@/components/driver/DriverHeader';
 import { DriverProfileCard } from '@/components/driver/DriverProfileCard';
 import { DriverRidesList } from '@/components/driver/DriverRidesList';
 import { DriverReviews } from '@/components/driver/DriverReviews';
+import { DriverPreferences } from '@/components/driver/DriverPreferences';
+import { DriverPolicies } from '@/components/driver/DriverPolicies';
 import { useToast } from '@/hooks/use-toast';
 import { LiveTracking } from '@/components/tracking/LiveTracking';
 
 const DriverProfile = () => {
-  const { driverId } = useParams<{ driverId: string }>();
+  const { id: driverId } = useParams<{ id: string }>();
   const [driver, setDriver] = useState<Driver | null>(null);
   const [driverRides, setDriverRides] = useState<FirebaseRide[]>([]);
   const [userRides, setUserRides] = useState<FirebaseRide[]>([]);
@@ -32,6 +34,27 @@ const DriverProfile = () => {
 
   // Mock user session
   const mockUserId = 'user123';
+
+  // Mock driver data with preferences and policies
+  const mockDriverData = {
+    preferences: {
+      music: true,
+      pets: false,
+      smoking: false,
+      children: true,
+    },
+    policies: {
+      detourFlexibility: 'medium' as const,
+      maxLuggageSize: 'medium' as const,
+      maxPassengers: 2,
+      comfortGuarantee: true,
+    },
+    verifications: {
+      phone: true,
+      email: true,
+    },
+    joinedDate: '2023-01-15',
+  };
   
   useEffect(() => {
     const savedProfile = localStorage.getItem('userProfile');
@@ -51,7 +74,10 @@ const DriverProfile = () => {
       const driverData = await getDriverById(id);
       
       if (driverData) {
-        setDriver(driverData);
+        setDriver({
+          ...driverData,
+          ...mockDriverData
+        });
         
         const allRides = await getRides();
         const filteredDriverRides = allRides.filter(ride => ride.driver.id === id);
@@ -85,6 +111,14 @@ const DriverProfile = () => {
   
   const handleStartTracking = (rideId: string) => {
     setTrackingRideId(trackingRideId === rideId ? null : rideId);
+  };
+
+  const formatJoinedDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric',
+      month: 'long'
+    });
   };
   
   if (loading) {
@@ -200,11 +234,93 @@ const DriverProfile = () => {
           )}
           
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-1">
-              <DriverProfileCard 
-                driver={driver!} 
-                onContactDriver={handleContactDriver}
-              />
+            <div className="lg:col-span-1 space-y-6">
+              {/* Enhanced Driver Profile Card */}
+              <Card className="p-6">
+                <div className="flex flex-col items-center text-center mb-6">
+                  <div className="h-24 w-24 rounded-full bg-brand-100 flex items-center justify-center mb-4">
+                    <span className="text-3xl font-bold text-brand-600">
+                      {driver.name?.charAt(0) || 'D'}
+                    </span>
+                  </div>
+                  
+                  <h1 className="text-2xl font-bold">{driver.name}</h1>
+                  
+                  <div className="flex items-center mt-2 mb-4">
+                    <span className="text-sm text-muted-foreground">
+                      Member since {formatJoinedDate(driver.joinedDate || '2023-01-01')}
+                    </span>
+                  </div>
+
+                  {/* Verification Status */}
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="flex items-center">
+                      <Phone className="h-4 w-4 mr-1" />
+                      {driver.verifications?.phone ? (
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <span className="text-sm text-muted-foreground">Not verified</span>
+                      )}
+                    </div>
+                    <div className="flex items-center">
+                      <Mail className="h-4 w-4 mr-1" />
+                      {driver.verifications?.email ? (
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <span className="text-sm text-muted-foreground">Not verified</span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {driver.verified && (
+                    <div className="flex items-center text-green-700 mb-4">
+                      <CheckCircle className="h-4 w-4 mr-1" />
+                      <span className="text-sm">Verified Driver</span>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="border-t border-border pt-6">
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground mb-2">About</h3>
+                      <p className="text-sm">{driver.bio || "No bio available"}</p>
+                    </div>
+                    
+                    <div className="text-sm">
+                      <div className="font-medium">{driver.completedRides || 0} rides completed</div>
+                    </div>
+                    
+                    {driver.car && (
+                      <div className="text-sm">
+                        <div className="font-medium">{driver.car.model} ({driver.car.year})</div>
+                        <div className="text-muted-foreground">{driver.car.color}</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="mt-6">
+                  <Button 
+                    variant="outline" 
+                    className="w-full" 
+                    onClick={handleContactDriver}
+                  >
+                    <MessageCircle className="h-4 w-4 mr-2" />
+                    Send Message
+                  </Button>
+                </div>
+              </Card>
+
+              {/* Driver Preferences */}
+              {driver.preferences && (
+                <DriverPreferences preferences={driver.preferences} />
+              )}
+
+              {/* Driver Policies */}
+              {driver.policies && (
+                <DriverPolicies policies={driver.policies} />
+              )}
             </div>
             
             <div className="lg:col-span-2">
