@@ -7,6 +7,9 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { getPresenceChannel } from '@/lib/supabase';
+
 
 interface Message {
   id: string;
@@ -27,6 +30,8 @@ interface MessagingModalProps {
   currentUserName: string;
 }
 
+
+
 export const MessagingModal: React.FC<MessagingModalProps> = ({
   isOpen,
   onClose,
@@ -40,6 +45,7 @@ export const MessagingModal: React.FC<MessagingModalProps> = ({
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [isRecipientOnline, setIsRecipientOnline] = useState(false);
   const { toast } = useToast();
 
   // Mock messages for demo
@@ -84,51 +90,6 @@ export const MessagingModal: React.FC<MessagingModalProps> = ({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const handleSendMessage = async () => {
-    if (!newMessage.trim()) return;
-
-    setLoading(true);
-    try {
-      const message: Message = {
-        id: Date.now().toString(),
-        senderId: currentUserId,
-        senderName: currentUserName,
-        content: newMessage.trim(),
-        timestamp: new Date(),
-        isCurrentUser: true,
-      };
-
-      setMessages(prev => [...prev, message]);
-      setNewMessage('');
-
-      // Simulate auto-reply after 2 seconds
-      setTimeout(() => {
-        const autoReply: Message = {
-          id: (Date.now() + 1).toString(),
-          senderId: recipientId,
-          senderName: recipientName,
-          content: "Thanks for the message! I'll get back to you soon.",
-          timestamp: new Date(),
-          isCurrentUser: false,
-        };
-        setMessages(prev => [...prev, autoReply]);
-      }, 2000);
-
-      toast({
-        title: "Message sent",
-        description: `Your message has been sent to ${recipientName}.`,
-      });
-    } catch (error) {
-      toast({
-        title: "Failed to send message",
-        description: "Please try again later.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -136,12 +97,98 @@ export const MessagingModal: React.FC<MessagingModalProps> = ({
     }
   };
 
+  const handleSendMessage = async () => {
+    if (!newMessage.trim()) return;
+
+    setLoading(true);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not logged in");
+
+      const { data: conversation } = await supabase
+        .from('conversations')
+        .select('id')
+        .or(`and(participant1.eq.${currentUserId},participant2.eq.${recipientId}),and(participant1.eq.${recipientId},participant2.eq.${currentUserId})`)
+        .maybeSingle();
+
+      let conversationId = conversation?.id;
+
+      if (!conversationId) {
+        const { data: newConv } = await supabase
+          .from('conversations')
+          .insert([{ participant1: currentUserId, participant2: recipientId }])
+          .select()
+          .single();
+        conversationId = newConv.id;
+      }
+
+      await supabase.from('messages').insert([{
+        conversation_id: conversationId,
+        sender_id: currentUserId,
+        content: newMessage.trim()
+      }]);
+
+      setNewMessage('');
+      toast({
+        title: "Message sent",
+        description: `Your message has been sent to ${recipientName}.`,
+      });
+    } catch (err) {
+      console.error(err);
+      toast({
+        title: "Message failed",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
   const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
+
+  useEffect(() => {
+    if (!isOpen || !recipientId || !currentUserId) return;
+
+    const loadMessages = async () => {
+      const { data: conversation } = await supabase
+        .from('conversations')
+        .select('id')
+        .or(`and(participant1.eq.${currentUserId},participant2.eq.${recipientId}),and(participant1.eq.${recipientId},participant2.eq.${currentUserId})`)
+        .maybeSingle();
+
+      if (!conversation) return;
+
+      const { data: messages } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', conversation.id)
+        .order('sent_at', { ascending: true });
+
+      const formatted = messages.map((msg) => ({
+        id: msg.id,
+        senderId: msg.sender_id,
+        senderName: msg.sender_id === currentUserId ? currentUserName : recipientName,
+        content: msg.content,
+        timestamp: new Date(msg.sent_at),
+        isCurrentUser: msg.sender_id === currentUserId,
+      }));
+
+      setMessages(formatted);
+    };
+
+    loadMessages();
+  }, [isOpen, recipientId, currentUserId]);
+
+
+
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
@@ -164,7 +211,10 @@ export const MessagingModal: React.FC<MessagingModalProps> = ({
               </Avatar>
               <div>
                 <DialogTitle className="text-lg">{recipientName}</DialogTitle>
-                <p className="text-sm text-muted-foreground">Online</p>
+                <p className={`text-sm ${isRecipientOnline ? 'text-green-600' : 'text-muted-foreground'}`}>
+                  {isRecipientOnline ? 'Online' : 'Offline'}
+                </p>
+
               </div>
             </div>
             <Button variant="ghost" size="sm" onClick={onClose}>
@@ -181,17 +231,15 @@ export const MessagingModal: React.FC<MessagingModalProps> = ({
                 className={`flex ${message.isCurrentUser ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[70%] p-3 rounded-lg ${
-                    message.isCurrentUser
-                      ? 'bg-brand-600 text-white'
-                      : 'bg-muted text-foreground'
-                  }`}
+                  className={`max-w-[70%] p-3 rounded-lg ${message.isCurrentUser
+                    ? 'bg-brand-600 text-white'
+                    : 'bg-muted text-foreground'
+                    }`}
                 >
                   <p className="text-sm">{message.content}</p>
                   <p
-                    className={`text-xs mt-1 ${
-                      message.isCurrentUser ? 'text-brand-100' : 'text-muted-foreground'
-                    }`}
+                    className={`text-xs mt-1 ${message.isCurrentUser ? 'text-brand-100' : 'text-muted-foreground'
+                      }`}
                   >
                     {formatTime(message.timestamp)}
                   </p>
