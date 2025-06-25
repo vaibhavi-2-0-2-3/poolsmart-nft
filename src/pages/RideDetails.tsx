@@ -4,11 +4,14 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Navbar } from '@/components/layout/Navbar';
 import { Card } from '@/components/shared/Card';
 import { Button } from '@/components/shared/Button';
-import { ChevronLeft, MapPin, Clock, Users, DollarSign, Shield, ExternalLink, CreditCard } from 'lucide-react';
+import { ChevronLeft, MapPin, Clock, Users, DollarSign, Shield, ExternalLink, CreditCard, MessageCircle } from 'lucide-react';
 import { getRides, createBooking, SupabaseRide } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { ProtectedAction } from '@/components/auth/ProtectedAction';
 import { useToast } from '@/hooks/use-toast';
+import { MessagingModal } from '@/components/messaging/MessagingModal';
+import { CalendarAlert } from '@/components/calendar/CalendarAlert';
+import { WeatherWidget } from '@/components/weather/WeatherWidget';
 
 const RideDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -16,6 +19,7 @@ const RideDetails = () => {
   const [ride, setRide] = useState<SupabaseRide | null>(null);
   const [loading, setLoading] = useState(true);
   const [booking, setBooking] = useState(false);
+  const [messagingOpen, setMessagingOpen] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -142,6 +146,9 @@ const RideDetails = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
+              {/* Weather Widget */}
+              <WeatherWidget location={ride.origin} date={ride.date} />
+
               {/* Route Information */}
               <Card className="p-6">
                 <h1 className="text-2xl font-bold mb-6">Ride Details</h1>
@@ -236,16 +243,38 @@ const RideDetails = () => {
                       <div className="text-sm text-muted-foreground">New driver</div>
                     </div>
                   </div>
-                  <Button variant="outline" asChild>
-                    <Link to={`/driver/${ride.user_id}`}>
-                      View Profile
-                    </Link>
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setMessagingOpen(true)}
+                    >
+                      <MessageCircle className="h-4 w-4 mr-1" />
+                      Message
+                    </Button>
+                    <Button variant="outline" asChild>
+                      <Link to={`/driver/${ride.user_id}`}>
+                        View Profile
+                      </Link>
+                    </Button>
+                  </div>
                 </div>
               </Card>
             </div>
 
             <div className="lg:col-span-1 space-y-6">
+              {/* Calendar Integration */}
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold mb-4">Add to Calendar</h3>
+                <CalendarAlert
+                  rideDate={ride.date}
+                  origin={ride.origin}
+                  destination={ride.destination}
+                  driverName={ride.driver_name || 'Driver'}
+                  notes="Booked via PoolSmart-NFT"
+                />
+              </Card>
+
               {/* Booking Card */}
               <Card className="p-6">
                 <div className="space-y-4">
@@ -321,6 +350,16 @@ const RideDetails = () => {
           </div>
         </div>
       </main>
+
+      {/* Messaging Modal */}
+      <MessagingModal
+        isOpen={messagingOpen}
+        onClose={() => setMessagingOpen(false)}
+        recipientId={ride.user_id}
+        recipientName={ride.driver_name || 'Driver'}
+        currentUserId={user?.id || 'current-user'}
+        currentUserName={user?.email?.split('@')[0] || 'You'}
+      />
     </div>
   );
 };

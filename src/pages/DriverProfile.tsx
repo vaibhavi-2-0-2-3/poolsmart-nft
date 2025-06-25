@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Navbar } from '@/components/layout/Navbar';
@@ -6,7 +7,8 @@ import { Button } from '@/components/shared/Button';
 import { ChevronLeft, MapPin, Phone, Mail, CheckCircle, MessageCircle } from 'lucide-react';
 import { getDriverById, Driver, getRides, Ride as FirebaseRide } from '@/lib/firebase';
 import { ContactDriverModal } from '@/components/driver/ContactDriverModal';
-import { ProfileEditModal } from '@/components/profile/ProfileEditModal';
+import { EnhancedProfileModal } from '@/components/profile/EnhancedProfileModal';
+import { MessagingModal } from '@/components/messaging/MessagingModal';
 import { DriverHeader } from '@/components/driver/DriverHeader';
 import { DriverProfileCard } from '@/components/driver/DriverProfileCard';
 import { DriverRidesList } from '@/components/driver/DriverRidesList';
@@ -15,6 +17,7 @@ import { DriverPreferences } from '@/components/driver/DriverPreferences';
 import { DriverPolicies } from '@/components/driver/DriverPolicies';
 import { useToast } from '@/hooks/use-toast';
 import { LiveTracking } from '@/components/tracking/LiveTracking';
+import { useAuth } from '@/hooks/useAuth';
 
 const DriverProfile = () => {
   const { id: driverId } = useParams<{ id: string }>();
@@ -24,11 +27,25 @@ const DriverProfile = () => {
   const [loading, setLoading] = useState(true);
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [profileEditModalOpen, setProfileEditModalOpen] = useState(false);
+  const [messagingOpen, setMessagingOpen] = useState(false);
   const [trackingRideId, setTrackingRideId] = useState<string | null>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
+  
   const [userProfile2, setUserProfile2] = useState({
     username: 'User',
-    avatar: ''
+    avatar: '',
+    bio: '',
+    preferences: {
+      searchRadius: '10km',
+      luggageSize: 'medium',
+      hidePartialRoutes: false,
+      maxBackSeatPassengers: true,
+      music: true,
+      animals: false,
+      children: true,
+      smoking: false,
+    },
   });
 
   // Mock user session
@@ -58,7 +75,11 @@ const DriverProfile = () => {
   useEffect(() => {
     const savedProfile = localStorage.getItem('userProfile');
     if (savedProfile) {
-      setUserProfile2(JSON.parse(savedProfile));
+      const parsed = JSON.parse(savedProfile);
+      setUserProfile2({
+        ...userProfile2,
+        ...parsed,
+      });
     }
     
     if (driverId) {
@@ -99,7 +120,7 @@ const DriverProfile = () => {
     }
   };
 
-  const handleProfileSave = (data: { username: string; avatar: string }) => {
+  const handleProfileSave = (data: { username: string; avatar: string; bio: string; preferences: any }) => {
     setUserProfile2(data);
     localStorage.setItem('userProfile', JSON.stringify(data));
   };
@@ -299,14 +320,22 @@ const DriverProfile = () => {
                   </div>
                 </div>
                 
-                <div className="mt-6">
+                <div className="mt-6 space-y-3">
+                  <Button 
+                    variant="outline" 
+                    className="w-full" 
+                    onClick={() => setMessagingOpen(true)}
+                  >
+                    <MessageCircle className="h-4 w-4 mr-2" />
+                    Send Message
+                  </Button>
+                  
                   <Button 
                     variant="outline" 
                     className="w-full" 
                     onClick={handleContactDriver}
                   >
-                    <MessageCircle className="h-4 w-4 mr-2" />
-                    Send Message
+                    Contact Driver
                   </Button>
                 </div>
               </Card>
@@ -340,12 +369,20 @@ const DriverProfile = () => {
         onClose={() => setContactModalOpen(false)}
       />
       
-      <ProfileEditModal 
+      <EnhancedProfileModal 
         isOpen={profileEditModalOpen}
         onClose={() => setProfileEditModalOpen(false)}
-        currentUsername={userProfile2.username}
-        currentAvatar={userProfile2.avatar}
+        currentData={userProfile2}
         onSave={handleProfileSave}
+      />
+
+      <MessagingModal
+        isOpen={messagingOpen}
+        onClose={() => setMessagingOpen(false)}
+        recipientId={driver?.id || ''}
+        recipientName={driver?.name || ''}
+        currentUserId={user?.id || 'current-user'}
+        currentUserName={user?.email?.split('@')[0] || 'You'}
       />
     </div>
   );
