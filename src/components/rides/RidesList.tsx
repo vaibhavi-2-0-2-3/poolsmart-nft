@@ -4,8 +4,10 @@ import { Link } from 'react-router-dom';
 import { Card } from '@/components/shared/Card';
 import { Button } from '@/components/shared/Button';
 import { MapPin, Calendar, Clock, Star, Users } from 'lucide-react';
-import { getRides, bookRide, Ride } from '@/lib/firebase';
+import { getRides, createBooking, SupabaseRide } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
+import { ProtectedAction } from '../auth/ProtectedAction';
 
 interface RidesListProps {
   searchParams: {
@@ -19,44 +21,39 @@ interface RidesListProps {
 }
 
 const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger }) => {
-  const [rides, setRides] = useState<Ride[]>([]);
+  const [rides, setRides] = useState<SupabaseRide[]>([]);
   const [loading, setLoading] = useState(true);
   const [bookingRide, setBookingRide] = useState<string | null>(null);
   const { toast } = useToast();
-
-  // Mock user session
-  const mockUserId = 'user123';
+  const { user } = useAuth();
 
   useEffect(() => {
-    console.log("RidesList: refreshTrigger changed to", refreshTrigger);
     loadRides();
   }, [refreshTrigger]);
 
   const loadRides = async () => {
     try {
       setLoading(true);
-      console.log("RidesList: Loading rides from Firebase...");
       const allRides = await getRides();
-      console.log("RidesList: Loaded rides:", allRides.length);
       
       // Filter rides based on search params
       let filteredRides = allRides;
       
       if (searchParams.from) {
         filteredRides = filteredRides.filter(ride => 
-          ride.departure.location.toLowerCase().includes(searchParams.from.toLowerCase())
+          ride.origin.toLowerCase().includes(searchParams.from.toLowerCase())
         );
       }
       
       if (searchParams.to) {
         filteredRides = filteredRides.filter(ride => 
-          ride.destination.location.toLowerCase().includes(searchParams.to.toLowerCase())
+          ride.destination.toLowerCase().includes(searchParams.to.toLowerCase())
         );
       }
       
       if (searchParams.date) {
         filteredRides = filteredRides.filter(ride => {
-          const rideDate = new Date(ride.departure.time).toLocaleDateString();
+          const rideDate = new Date(ride.date).toLocaleDateString();
           const searchDate = new Date(searchParams.date).toLocaleDateString();
           return rideDate === searchDate;
         });
@@ -64,7 +61,7 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger }) =
       
       if (searchParams.seats && parseInt(searchParams.seats) > 0) {
         filteredRides = filteredRides.filter(ride => 
-          ride.seatsAvailable >= parseInt(searchParams.seats)
+          ride.seats >= parseInt(searchParams.seats)
         );
       }
       
@@ -82,27 +79,28 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger }) =
   };
 
   const handleBookRide = async (rideId: string) => {
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to book a ride.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setBookingRide(rideId);
     try {
-      const success = await bookRide(rideId, mockUserId);
-      if (success) {
-        toast({
-          title: "Ride booked",
-          description: "Your ride has been successfully booked!",
-        });
-        loadRides(); // Refresh the list
-      } else {
-        toast({
-          title: "Booking failed",
-          description: "Unable to book this ride. It may be full.",
-          variant: "destructive",
-        });
-      }
+      await createBooking(rideId);
+      toast({
+        title: "Ride booked",
+        description: "Your ride has been successfully booked!",
+      });
+      loadRides(); // Refresh the list
     } catch (error) {
       console.error("Error booking ride:", error);
       toast({
-        title: "Error",
-        description: "There was an error booking your ride.",
+        title: "Booking failed",
+        description: "Unable to book this ride. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -162,21 +160,16 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger }) =
               <div className="flex items-center space-x-3">
                 <div className="h-10 w-10 rounded-full bg-brand-100 flex items-center justify-center">
                   <span className="text-brand-600 font-semibold">
-                    {ride.driver.name.charAt(0)}
+                    {ride.driver_name?.charAt(0) || 'D'}
                   </span>
                 </div>
                 <div>
-                  <Link 
-                    to={`/driver/${ride.driver.id}`}
-                    className="font-semibold hover:text-brand-600 transition-colors"
-                  >
-                    {ride.driver.name}
-                  </Link>
+                  <div className="font-semibold">
+                    {ride.driver_name || 'Anonymous Driver'}
+                  </div>
                   <div className="flex items-center mt-1">
                     <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
-                    <span className="ml-1 text-sm">
-                      {ride.driver.rating} ({ride.driver.reviewCount} reviews)
-                    </span>
+                    <span className="ml-1 text-sm">4.5 (New driver)</span>
                   </div>
                 </div>
               </div>
@@ -191,7 +184,7 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger }) =
                 <MapPin className="h-5 w-5 text-brand-600 mr-2" />
                 <div>
                   <div className="text-sm text-muted-foreground">From</div>
-                  <div className="font-medium">{ride.departure.location}</div>
+                  <div className="font-medium">{ride.origin}</div>
                 </div>
               </div>
               
@@ -199,7 +192,7 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger }) =
                 <MapPin className="h-5 w-5 text-brand-600 mr-2" />
                 <div>
                   <div className="text-sm text-muted-foreground">To</div>
-                  <div className="font-medium">{ride.destination.location}</div>
+                  <div className="font-medium">{ride.destination}</div>
                 </div>
               </div>
               
@@ -208,7 +201,7 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger }) =
                 <div>
                   <div className="text-sm text-muted-foreground">Date & Time</div>
                   <div className="font-medium">
-                    {formatDate(ride.departure.time)} at {formatTime(ride.departure.time)}
+                    {formatDate(ride.date)} at {formatTime(ride.date)}
                   </div>
                 </div>
               </div>
@@ -218,18 +211,28 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger }) =
               <div className="flex items-center">
                 <Users className="h-5 w-5 text-brand-600 mr-2" />
                 <span className="text-sm">
-                  {ride.seatsAvailable} {ride.seatsAvailable === 1 ? 'seat' : 'seats'} available
+                  {ride.seats} {ride.seats === 1 ? 'seat' : 'seats'} available
                 </span>
               </div>
               
-              <Button 
-                variant="primary"
-                onClick={() => handleBookRide(ride.id)}
-                disabled={bookingRide === ride.id || ride.seatsAvailable === 0}
+              <ProtectedAction
+                requireAuth={true}
+                fallback={
+                  <Button variant="primary" disabled>
+                    Sign in to Book
+                  </Button>
+                }
               >
-                {bookingRide === ride.id ? 'Booking...' : 
-                 ride.seatsAvailable === 0 ? 'Full' : 'Book Ride'}
-              </Button>
+                <Button 
+                  variant="primary"
+                  onClick={() => handleBookRide(ride.id)}
+                  disabled={bookingRide === ride.id || ride.seats === 0 || ride.user_id === user?.id}
+                >
+                  {bookingRide === ride.id ? 'Booking...' : 
+                   ride.seats === 0 ? 'Full' : 
+                   ride.user_id === user?.id ? 'Your Ride' : 'Book Ride'}
+                </Button>
+              </ProtectedAction>
             </div>
           </div>
         </Card>

@@ -1,11 +1,14 @@
+
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/shared/Button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Ride, createRide, Driver } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
+import { createRide } from '@/lib/supabase';
 import { MapPin, Calendar, Clock, Users, DollarSign } from 'lucide-react';
+import { ProtectedAction } from '../auth/ProtectedAction';
 
 interface CreateRideModalProps {
   isOpen: boolean;
@@ -19,16 +22,15 @@ export const CreateRideModal: React.FC<CreateRideModalProps> = ({
   onSuccess,
 }) => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    fromLocation: '',
-    toLocation: '',
-    departureDate: '',
-    departureTime: '',
-    seatsAvailable: '1',
+    origin: '',
+    destination: '',
+    date: '',
+    time: '',
+    seats: '1',
     price: '25',
-    driverName: '',
-    driverEmail: '',
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -39,78 +41,47 @@ export const CreateRideModal: React.FC<CreateRideModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to create a ride.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setLoading(true);
     
     try {
-      console.log("Creating ride with form data:", formData);
-      
-      // Create a unique driver ID
-      const driverId = `driver_${Date.now()}`;
-      
-      // Create a driver object
-      const driver: Driver = {
-        id: driverId,
-        name: formData.driverName || "Anonymous Driver",
-        rating: 4.5,
-        avatar: "",
-        address: formData.driverEmail,
-        reviewCount: 0,
-        bio: `New driver offering rides from ${formData.fromLocation}`,
-        carModel: "Not specified",
-        carColor: "Not specified",
-        licensePlate: "Not specified",
-        joinDate: new Date().toISOString(),
-        totalRides: 0,
-        verified: false,
-      };
-      
-      // Create ride object with correct structure
-      const ride: Omit<Ride, "id"> = {
-        driver,
-        departure: {
-          location: formData.fromLocation,
-          time: `${formData.departureDate}T${formData.departureTime}:00Z`,
-        },
-        destination: {
-          location: formData.toLocation,
-        },
+      const rideData = {
+        origin: formData.origin,
+        destination: formData.destination,
+        seats: parseInt(formData.seats),
+        date: `${formData.date}T${formData.time}:00Z`,
         price: parseFloat(formData.price),
-        seatsAvailable: parseInt(formData.seatsAvailable),
-        status: "active",
-        passengers: [],
-        verified: true,
+        driver_name: user.user_metadata?.full_name || user.email || 'Anonymous',
+        driver_email: user.email || '',
       };
       
-      console.log("Submitting ride to Firebase:", JSON.stringify(ride));
+      const rideId = await createRide(rideData);
       
-      // Save ride to Firebase
-      const rideId = await createRide(ride);
-      console.log("Ride created with ID:", rideId);
+      toast({
+        title: "Ride created",
+        description: "Your ride has been successfully created!",
+      });
       
-      if (rideId) {
-        toast({
-          title: "Ride created",
-          description: "Your ride has been successfully created and stored in Firebase",
-        });
-        
-        // Reset form
-        setFormData({
-          fromLocation: '',
-          toLocation: '',
-          departureDate: '',
-          departureTime: '',
-          seatsAvailable: '1',
-          price: '25',
-          driverName: '',
-          driverEmail: '',
-        });
-        
-        // Close modal and refresh rides list
-        onSuccess();
-        onClose();
-      } else {
-        throw new Error("Failed to create ride - no ride ID returned");
-      }
+      // Reset form
+      setFormData({
+        origin: '',
+        destination: '',
+        date: '',
+        time: '',
+        seats: '1',
+        price: '25',
+      });
+      
+      onSuccess();
+      onClose();
     } catch (error) {
       console.error("Error creating ride:", error);
       toast({
@@ -130,76 +101,19 @@ export const CreateRideModal: React.FC<CreateRideModalProps> = ({
           <DialogTitle className="text-xl font-bold">Offer a Ride</DialogTitle>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-          <div className="space-y-4">
-            <div className="grid gap-2">
-              <Label htmlFor="driverName">Your Name</Label>
-              <Input
-                id="driverName"
-                name="driverName"
-                placeholder="Enter your name"
-                value={formData.driverName}
-                onChange={handleChange}
-                required
-              />
-            </div>
-            
-            <div className="grid gap-2">
-              <Label htmlFor="driverEmail">Your Email</Label>
-              <Input
-                id="driverEmail"
-                name="driverEmail"
-                type="email"
-                placeholder="Enter your email"
-                value={formData.driverEmail}
-                onChange={handleChange}
-                required
-              />
-            </div>
-            
-            <div className="grid gap-2">
-              <Label htmlFor="fromLocation">From</Label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="fromLocation"
-                  name="fromLocation"
-                  placeholder="Departure location"
-                  className="pl-10"
-                  value={formData.fromLocation}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-            </div>
-            
-            <div className="grid gap-2">
-              <Label htmlFor="toLocation">To</Label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="toLocation"
-                  name="toLocation"
-                  placeholder="Destination"
-                  className="pl-10"
-                  value={formData.toLocation}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
+        <ProtectedAction requireAuth={true}>
+          <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+            <div className="space-y-4">
               <div className="grid gap-2">
-                <Label htmlFor="departureDate">Date</Label>
+                <Label htmlFor="origin">From</Label>
                 <div className="relative">
-                  <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
-                    id="departureDate"
-                    name="departureDate"
-                    type="date"
+                    id="origin"
+                    name="origin"
+                    placeholder="Departure location"
                     className="pl-10"
-                    value={formData.departureDate}
+                    value={formData.origin}
                     onChange={handleChange}
                     required
                   />
@@ -207,79 +121,113 @@ export const CreateRideModal: React.FC<CreateRideModalProps> = ({
               </div>
               
               <div className="grid gap-2">
-                <Label htmlFor="departureTime">Time</Label>
+                <Label htmlFor="destination">To</Label>
                 <div className="relative">
-                  <Clock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
-                    id="departureTime"
-                    name="departureTime"
-                    type="time"
+                    id="destination"
+                    name="destination"
+                    placeholder="Destination"
                     className="pl-10"
-                    value={formData.departureTime}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="seatsAvailable">Available Seats</Label>
-                <div className="relative">
-                  <Users className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="seatsAvailable"
-                    name="seatsAvailable"
-                    type="number"
-                    min="1"
-                    max="8"
-                    className="pl-10"
-                    value={formData.seatsAvailable}
+                    value={formData.destination}
                     onChange={handleChange}
                     required
                   />
                 </div>
               </div>
               
-              <div className="grid gap-2">
-                <Label htmlFor="price">Price ($)</Label>
-                <div className="relative">
-                  <DollarSign className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="price"
-                    name="price"
-                    type="number"
-                    step="1"
-                    min="1"
-                    className="pl-10"
-                    value={formData.price}
-                    onChange={handleChange}
-                    required
-                  />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="date">Date</Label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="date"
+                      name="date"
+                      type="date"
+                      className="pl-10"
+                      value={formData.date}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
+                </div>
+                
+                <div className="grid gap-2">
+                  <Label htmlFor="time">Time</Label>
+                  <div className="relative">
+                    <Clock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="time"
+                      name="time"
+                      type="time"
+                      className="pl-10"
+                      value={formData.time}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="seats">Available Seats</Label>
+                  <div className="relative">
+                    <Users className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="seats"
+                      name="seats"
+                      type="number"
+                      min="1"
+                      max="8"
+                      className="pl-10"
+                      value={formData.seats}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
+                </div>
+                
+                <div className="grid gap-2">
+                  <Label htmlFor="price">Price ($)</Label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="price"
+                      name="price"
+                      type="number"
+                      step="1"
+                      min="1"
+                      className="pl-10"
+                      value={formData.price}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-          
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              disabled={loading}
-            >
-              {loading ? 'Creating...' : 'Create Ride'}
-            </Button>
-          </DialogFooter>
-        </form>
+            
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={loading}
+              >
+                {loading ? 'Creating...' : 'Create Ride'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </ProtectedAction>
       </DialogContent>
     </Dialog>
   );

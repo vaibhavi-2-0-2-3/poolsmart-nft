@@ -9,7 +9,101 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      bookings: {
+        Row: {
+          id: string
+          ride_id: string | null
+          status: string | null
+          user_id: string | null
+        }
+        Insert: {
+          id?: string
+          ride_id?: string | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          id?: string
+          ride_id?: string | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_ride_id_fkey"
+            columns: ["ride_id"]
+            isOneToOne: false
+            referencedRelation: "rides"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      rides: {
+        Row: {
+          created_at: string | null
+          date: string | null
+          destination: string | null
+          driver_email: string | null
+          driver_name: string | null
+          id: string
+          origin: string | null
+          price: number | null
+          seats: number | null
+          status: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          date?: string | null
+          destination?: string | null
+          driver_email?: string | null
+          driver_name?: string | null
+          id?: string
+          origin?: string | null
+          price?: number | null
+          seats?: number | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          date?: string | null
+          destination?: string | null
+          driver_email?: string | null
+          driver_name?: string | null
+          id?: string
+          origin?: string | null
+          price?: number | null
+          seats?: number | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
