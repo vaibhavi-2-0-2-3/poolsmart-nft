@@ -28,6 +28,28 @@ export interface Driver {
   joinDate?: string;
   totalRides?: number;
   verified?: boolean;
+  completedRides?: number;
+  car?: {
+    model: string;
+    year: string;
+    color: string;
+  };
+  verifications?: {
+    phone: boolean;
+    email: boolean;
+  };
+  preferences?: {
+    music: boolean;
+    pets: boolean;
+    smoking: boolean;
+    children: boolean;
+  };
+  policies?: {
+    detourFlexibility: 'low' | 'medium' | 'high';
+    maxLuggageSize: 'small' | 'medium' | 'large';
+    maxPassengers: number;
+    comfortGuarantee: boolean;
+  };
 }
 
 export interface Ride {
@@ -68,6 +90,28 @@ const mockDrivers: Driver[] = [
     joinDate: '2022-01-15',
     totalRides: 156,
     verified: true,
+    completedRides: 156,
+    car: {
+      model: 'Toyota Camry',
+      year: '2020',
+      color: 'Silver'
+    },
+    verifications: {
+      phone: true,
+      email: true
+    },
+    preferences: {
+      music: true,
+      pets: false,
+      smoking: false,
+      children: true
+    },
+    policies: {
+      detourFlexibility: 'medium',
+      maxLuggageSize: 'medium',
+      maxPassengers: 3,
+      comfortGuarantee: true
+    }
   },
   {
     id: 'driver2',
@@ -83,6 +127,28 @@ const mockDrivers: Driver[] = [
     joinDate: '2022-03-20',
     totalRides: 89,
     verified: true,
+    completedRides: 89,
+    car: {
+      model: 'Honda Civic',
+      year: '2021',
+      color: 'Blue'
+    },
+    verifications: {
+      phone: true,
+      email: false
+    },
+    preferences: {
+      music: false,
+      pets: true,
+      smoking: false,
+      children: false
+    },
+    policies: {
+      detourFlexibility: 'high',
+      maxLuggageSize: 'large',
+      maxPassengers: 2,
+      comfortGuarantee: false
+    }
   },
 ];
 
@@ -213,6 +279,11 @@ export const createOrUpdateDriver = async (driver: Driver): Promise<void> => {
         joinDate: driver.joinDate,
         totalRides: driver.totalRides,
         verified: driver.verified,
+        completedRides: driver.completedRides,
+        car: driver.car,
+        verifications: driver.verifications,
+        preferences: driver.preferences,
+        policies: driver.policies,
       };
       await updateDoc(driverDocRef, updateData);
       console.log("Driver updated in Firebase");

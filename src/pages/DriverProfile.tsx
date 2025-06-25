@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Navbar } from '@/components/layout/Navbar';
@@ -53,7 +52,7 @@ const DriverProfile = () => {
       phone: true,
       email: true,
     },
-    joinedDate: '2023-01-15',
+    joinDate: '2023-01-15',
   };
   
   useEffect(() => {
@@ -248,7 +247,7 @@ const DriverProfile = () => {
                   
                   <div className="flex items-center mt-2 mb-4">
                     <span className="text-sm text-muted-foreground">
-                      Member since {formatJoinedDate(driver.joinedDate || '2023-01-01')}
+                      Member since {formatJoinedDate(driver.joinDate || '2023-01-01')}
                     </span>
                   </div>
 
