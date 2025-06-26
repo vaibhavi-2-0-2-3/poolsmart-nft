@@ -178,7 +178,7 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
             </Button>
           )}
         </DialogFooter>
-      </Dialog>
+      </DialogContent>
     </Dialog>
   );
 };
