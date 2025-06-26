@@ -21,7 +21,8 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
   onClose, 
   rideId, 
   driverId, 
-  driverName 
+  driverName,
+  onReviewSubmitted 
 }) => {
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
@@ -37,7 +38,7 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
   }, [isOpen, rideId, driverId]);
 
   const checkExistingReview = async () => {
-    if (!rideId || !driverId) return; // ✅ prevent invalid query
+    if (!rideId || !driverId) return;
 
     try {
       setLoading(true);
@@ -57,7 +58,6 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
       setLoading(false);
     }
   };
-
 
   const handleSubmitReview = async () => {
     if (existingReview) {
@@ -82,6 +82,11 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
         title: "Review submitted",
         description: "Thank you for your feedback!",
       });
+      
+      // Call the callback to refresh the reviews list
+      if (onReviewSubmitted) {
+        onReviewSubmitted();
+      }
       
       onClose();
     } catch (error) {
@@ -121,7 +126,6 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
               : 'Leave your feedback for the driver.'}
           </DialogDescription>
         </DialogHeader>
-
 
         <div className="space-y-6">
           {existingReview && (
