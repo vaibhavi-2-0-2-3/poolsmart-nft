@@ -13,14 +13,15 @@ interface ReviewModalProps {
   rideId: string;
   driverId: string;
   driverName: string;
+  onReviewSubmitted?: () => void;
 }
 
-export const ReviewModal: React.FC<ReviewModalProps> = ({
-  isOpen,
-  onClose,
-  rideId,
-  driverId,
-  driverName
+export const ReviewModal: React.FC<ReviewModalProps> = ({ 
+  isOpen, 
+  onClose, 
+  rideId, 
+  driverId, 
+  driverName 
 }) => {
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
@@ -81,7 +82,7 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
         title: "Review submitted",
         description: "Thank you for your feedback!",
       });
-
+      
       onClose();
     } catch (error) {
       console.error('Error submitting review:', error);
