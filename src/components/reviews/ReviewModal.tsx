@@ -13,6 +13,7 @@ interface ReviewModalProps {
   rideId: string;
   driverId: string;
   driverName: string;
+  onReviewSubmitted?: () => void;
 }
 
 export const ReviewModal: React.FC<ReviewModalProps> = ({ 
@@ -20,7 +21,8 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
   onClose, 
   rideId, 
   driverId, 
-  driverName 
+  driverName,
+  onReviewSubmitted
 }) => {
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
@@ -78,6 +80,11 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
         title: "Review submitted",
         description: "Thank you for your feedback!",
       });
+      
+      // Call the callback to refresh reviews in parent component
+      if (onReviewSubmitted) {
+        onReviewSubmitted();
+      }
       
       onClose();
     } catch (error) {
