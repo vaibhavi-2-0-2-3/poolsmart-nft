@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Navbar } from '@/components/layout/Navbar';
@@ -118,8 +119,10 @@ export default function DriverProfile() {
         };
         setDriver(driverData);
         setDriverRides(ridesByDriver);
+        // Filter user rides - since we don't have passengers array, we'll use a different approach
+        // For now, we'll assume user has booked rides if they match certain criteria
         setUserRides(
-          ridesByDriver.filter((r) => r.passengers?.includes(mockUserId))
+          ridesByDriver.filter((r) => r.user_id === mockUserId)
         );
       }
     } catch (e) {
@@ -206,7 +209,7 @@ export default function DriverProfile() {
                       {ride.origin} → {ride.destination}
                     </div>
                   </div>
-                  {(ride.ride_status === 'active' || ride.ride_status === 'in_progress') && (
+                  {(ride.status === 'active' || ride.status === 'in_progress') && (
                     <Button
                       variant={trackingRideId === ride.id ? 'default' : 'outline'}
                       size="sm"
@@ -282,7 +285,7 @@ export default function DriverProfile() {
             {/* Right Panel */}
             <div className="lg:col-span-2">
               <DriverRidesList driverName={driver.name} rides={driverRides} />
-              <DriverReviews reviewCount={driver.completedRides} />
+              <DriverReviews driverId={driver.id} reviewCount={driver.completedRides} />
             </div>
           </div>
         </div>

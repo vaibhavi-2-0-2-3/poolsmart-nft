@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Card } from '@/components/shared/Card';
 import { Button } from '@/components/shared/Button';
 import { MapPin, Calendar, Clock } from 'lucide-react';
-import { SupabaseRide } from '@/integrations/supabase/client';
+import { SupabaseRide } from '@/lib/supabase';
 
 interface DriverRidesListProps {
   driverName: string;
