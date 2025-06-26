@@ -16,7 +16,7 @@ import { getRides, SupabaseRide } from '@/lib/supabase';
 import { ContactDriverModal } from '@/components/driver/ContactDriverModal';
 import { EnhancedProfileModal } from '@/components/profile/EnhancedProfileModal';
 import { MessagingModal } from '@/components/messaging/MessagingModal';
-import { DriverHeader } from '@/components/driver/DriverHeader';
+// import { DriverHeader } from '@/components/driver/DriverHeader';
 import { DriverRidesList } from '@/components/driver/DriverRidesList';
 import { DriverReviews } from '@/components/driver/DriverReviews';
 import { DriverPreferences } from '@/components/driver/DriverPreferences';
@@ -188,10 +188,10 @@ export default function DriverProfile() {
             </Link>
           </Button>
 
-          <DriverHeader
+          {/* <DriverHeader
             userProfile={userProfile2}
             onEditProfile={() => setProfileEditModalOpen(true)}
-          />
+          /> */}
 
           {hasBookedRides && (
             <Card className="p-6 mb-6 border-green-500">

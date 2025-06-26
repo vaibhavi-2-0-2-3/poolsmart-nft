@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Star, Loader2 } from 'lucide-react';
@@ -15,12 +15,12 @@ interface ReviewModalProps {
   driverName: string;
 }
 
-export const ReviewModal: React.FC<ReviewModalProps> = ({ 
-  isOpen, 
-  onClose, 
-  rideId, 
-  driverId, 
-  driverName 
+export const ReviewModal: React.FC<ReviewModalProps> = ({
+  isOpen,
+  onClose,
+  rideId,
+  driverId,
+  driverName
 }) => {
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
@@ -36,6 +36,8 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
   }, [isOpen, rideId, driverId]);
 
   const checkExistingReview = async () => {
+    if (!rideId || !driverId) return; // ✅ prevent invalid query
+
     try {
       setLoading(true);
       const review = await getUserReview(rideId, driverId);
@@ -54,6 +56,7 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
       setLoading(false);
     }
   };
+
 
   const handleSubmitReview = async () => {
     if (existingReview) {
@@ -78,7 +81,7 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
         title: "Review submitted",
         description: "Thank you for your feedback!",
       });
-      
+
       onClose();
     } catch (error) {
       console.error('Error submitting review:', error);
@@ -111,7 +114,13 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
           <DialogTitle>
             {existingReview ? 'Your Review' : `Review ${driverName}`}
           </DialogTitle>
+          <DialogDescription>
+            {existingReview
+              ? 'You already submitted a review for this ride.'
+              : 'Leave your feedback for the driver.'}
+          </DialogDescription>
         </DialogHeader>
+
 
         <div className="space-y-6">
           {existingReview && (
@@ -126,25 +135,24 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
             <label className="block text-sm font-medium mb-2">Rating</label>
             <div className="flex">
               {[1, 2, 3, 4, 5].map((star) => (
-                <button 
-                  key={star} 
+                <button
+                  key={star}
                   type="button"
                   onClick={() => !existingReview && setRating(star)}
                   className={`focus:outline-none mr-1 ${existingReview ? 'cursor-default' : 'cursor-pointer'}`}
                   disabled={!!existingReview}
                 >
-                  <Star 
-                    className={`h-8 w-8 ${
-                      star <= rating 
-                        ? 'text-amber-500 fill-amber-500' 
-                        : 'text-gray-300'
-                    }`} 
+                  <Star
+                    className={`h-8 w-8 ${star <= rating
+                      ? 'text-amber-500 fill-amber-500'
+                      : 'text-gray-300'
+                      }`}
                   />
                 </button>
               ))}
             </div>
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium mb-2">Comment (Optional)</label>
             <Textarea
@@ -157,13 +165,13 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
             />
           </div>
         </div>
-        
+
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
             {existingReview ? 'Close' : 'Cancel'}
           </Button>
           {!existingReview && (
-            <Button 
+            <Button
               onClick={handleSubmitReview}
               disabled={submitting}
             >

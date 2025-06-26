@@ -8,7 +8,6 @@ import { getRides, createBooking, SupabaseRide, getProfile } from '@/lib/supabas
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { ProtectedAction } from '../auth/ProtectedAction';
-import { ReviewModal } from '../reviews/ReviewModal';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 interface RidesListProps {
@@ -33,17 +32,6 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger }) =
   const [rides, setRides] = useState<RideWithProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [bookingRide, setBookingRide] = useState<string | null>(null);
-  const [reviewModal, setReviewModal] = useState<{
-    isOpen: boolean;
-    rideId: string;
-    driverId: string;
-    driverName: string;
-  }>({
-    isOpen: false,
-    rideId: '',
-    driverId: '',
-    driverName: '',
-  });
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -149,18 +137,6 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger }) =
     } finally {
       setBookingRide(null);
     }
-  };
-
-  const handleOpenReviewModal = (ride: RideWithProfile, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    setReviewModal({
-      isOpen: true,
-      rideId: ride.id,
-      driverId: ride.user_id,
-      driverName: ride.driver_profile?.username || ride.driver_name || 'Unknown Driver',
-    });
   };
 
   const formatDate = (dateString: string) => {
@@ -295,17 +271,6 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger }) =
                       <ArrowRight className="h-4 w-4 ml-1" />
                     </Button>
 
-                    {user && user.id !== ride.user_id && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => handleOpenReviewModal(ride, e)}
-                      >
-                        <Star className="h-4 w-4 mr-1" />
-                        Review
-                      </Button>
-                    )}
-
                     <ProtectedAction
                       requireAuth={true}
                       fallback={
@@ -332,14 +297,6 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger }) =
           </Link>
         ))}
       </div>
-
-      <ReviewModal
-        isOpen={reviewModal.isOpen}
-        onClose={() => setReviewModal(prev => ({ ...prev, isOpen: false }))}
-        rideId={reviewModal.rideId}
-        driverId={reviewModal.driverId}
-        driverName={reviewModal.driverName}
-      />
     </>
   );
 };

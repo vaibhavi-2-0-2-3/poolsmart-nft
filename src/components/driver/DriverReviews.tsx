@@ -1,8 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/shared/Card';
 import { Star, ThumbsUp, MessageCircle, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { getDriverReviews, SupabaseReview } from '@/lib/supabase';
 
 interface DriverReviewsProps {
@@ -10,7 +8,7 @@ interface DriverReviewsProps {
   reviewCount?: number;
 }
 
-export const DriverReviews: React.FC<DriverReviewsProps> = ({ driverId, reviewCount = 0 }) => {
+export const DriverReviews: React.FC<DriverReviewsProps> = ({ driverId }) => {
   const [reviews, setReviews] = useState<SupabaseReview[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -30,8 +28,8 @@ export const DriverReviews: React.FC<DriverReviewsProps> = ({ driverId, reviewCo
     }
   };
 
-  const averageRating = reviews.length > 0 
-    ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length 
+  const averageRating = reviews.length > 0
+    ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
     : 0;
 
   if (loading) {
@@ -46,26 +44,25 @@ export const DriverReviews: React.FC<DriverReviewsProps> = ({ driverId, reviewCo
 
   return (
     <Card className="p-6 mt-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 className="text-xl font-semibold">Reviews</h2>
-          {reviews.length > 0 && (
-            <div className="flex items-center mt-2">
-              <div className="flex">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} 
-                    className={`h-4 w-4 ${i < Math.floor(averageRating) ? 'text-amber-500 fill-amber-500' : 'text-gray-300'}`} 
-                  />
-                ))}
-              </div>
-              <span className="ml-2 text-sm text-muted-foreground">
-                {averageRating.toFixed(1)} ({reviews.length} review{reviews.length !== 1 ? 's' : ''})
-              </span>
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold">Reviews</h2>
+        {reviews.length > 0 && (
+          <div className="flex items-center mt-2">
+            <div className="flex">
+              {[...Array(5)].map((_, i) => (
+                <Star
+                  key={i}
+                  className={`h-4 w-4 ${i < Math.floor(averageRating) ? 'text-amber-500 fill-amber-500' : 'text-gray-300'}`}
+                />
+              ))}
             </div>
-          )}
-        </div>
+            <span className="ml-2 text-sm text-muted-foreground">
+              {averageRating.toFixed(1)} ({reviews.length} review{reviews.length !== 1 ? 's' : ''})
+            </span>
+          </div>
+        )}
       </div>
-      
+
       {reviews.length === 0 ? (
         <div className="text-center py-8">
           <MessageCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -81,16 +78,15 @@ export const DriverReviews: React.FC<DriverReviewsProps> = ({ driverId, reviewCo
               <div className="flex justify-between mb-2">
                 <div className="flex items-center">
                   <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center mr-3">
-                    <span className="text-sm font-medium text-gray-600">
-                      P
-                    </span>
+                    <span className="text-sm font-medium text-gray-600">P</span>
                   </div>
                   <span className="font-medium">Passenger</span>
                 </div>
                 <div className="flex">
                   {[...Array(5)].map((_, j) => (
-                    <Star key={j} 
-                      className={`h-4 w-4 ${j < review.rating ? 'text-amber-500 fill-amber-500' : 'text-gray-300'}`} 
+                    <Star
+                      key={j}
+                      className={`h-4 w-4 ${j < review.rating ? 'text-amber-500 fill-amber-500' : 'text-gray-300'}`}
                     />
                   ))}
                 </div>
@@ -99,9 +95,7 @@ export const DriverReviews: React.FC<DriverReviewsProps> = ({ driverId, reviewCo
                 <p className="text-sm mb-2 ml-11">{review.comment}</p>
               )}
               <div className="flex justify-between items-center text-xs text-muted-foreground">
-                <span className="ml-11">
-                  {new Date(review.created_at).toLocaleDateString()}
-                </span>
+                <span className="ml-11">{new Date(review.created_at).toLocaleDateString()}</span>
                 <button className="flex items-center hover:text-brand-600 transition-colors">
                   <ThumbsUp className="h-3 w-3 mr-1" />
                   Helpful
