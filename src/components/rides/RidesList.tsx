@@ -29,28 +29,28 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger }) =
 
   useEffect(() => {
     loadRides();
-  }, [refreshTrigger]);
+  }, [refreshTrigger, searchParams]);
 
   const loadRides = async () => {
     try {
       setLoading(true);
       const allRides = await getRides();
-      
+
       // Filter rides based on search params
       let filteredRides = allRides;
-      
+
       if (searchParams.from) {
-        filteredRides = filteredRides.filter(ride => 
+        filteredRides = filteredRides.filter(ride =>
           ride.origin.toLowerCase().includes(searchParams.from.toLowerCase())
         );
       }
-      
+
       if (searchParams.to) {
-        filteredRides = filteredRides.filter(ride => 
+        filteredRides = filteredRides.filter(ride =>
           ride.destination.toLowerCase().includes(searchParams.to.toLowerCase())
         );
       }
-      
+
       if (searchParams.date) {
         filteredRides = filteredRides.filter(ride => {
           const rideDate = new Date(ride.date).toLocaleDateString();
@@ -58,13 +58,13 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger }) =
           return rideDate === searchDate;
         });
       }
-      
+
       if (searchParams.seats && parseInt(searchParams.seats) > 0) {
-        filteredRides = filteredRides.filter(ride => 
+        filteredRides = filteredRides.filter(ride =>
           ride.seats >= parseInt(searchParams.seats)
         );
       }
-      
+
       setRides(filteredRides);
     } catch (error) {
       console.error("Error loading rides:", error);
@@ -81,7 +81,7 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger }) =
   const handleBookRide = async (rideId: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     if (!user) {
       toast({
         title: "Authentication required",
@@ -113,18 +113,18 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger }) =
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      weekday: 'short', 
-      month: 'short', 
-      day: 'numeric' 
+    return date.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric'
     });
   };
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
 
@@ -157,8 +157,8 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger }) =
   return (
     <div className="space-y-4">
       {rides.map((ride) => (
-        <Link 
-          key={ride.id} 
+        <Link
+          key={ride.id}
           to={`/ride/${ride.id}`}
           className="block transition-transform duration-200 hover:scale-[1.02]"
         >
@@ -186,7 +186,7 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger }) =
                   <div className="text-sm text-muted-foreground">per person</div>
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="flex items-center">
                   <MapPin className="h-5 w-5 text-brand-600 mr-2" />
@@ -195,7 +195,7 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger }) =
                     <div className="font-medium">{ride.origin}</div>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center">
                   <MapPin className="h-5 w-5 text-brand-600 mr-2" />
                   <div>
@@ -203,7 +203,7 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger }) =
                     <div className="font-medium">{ride.destination}</div>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center">
                   <Calendar className="h-5 w-5 text-brand-600 mr-2" />
                   <div>
@@ -214,7 +214,7 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger }) =
                   </div>
                 </div>
               </div>
-              
+
               <div className="flex justify-between items-center pt-4 border-t border-border">
                 <div className="flex items-center">
                   <Users className="h-5 w-5 text-brand-600 mr-2" />
@@ -222,17 +222,17 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger }) =
                     {ride.seats} {ride.seats === 1 ? 'seat' : 'seats'} available
                   </span>
                 </div>
-                
+
                 <div className="flex items-center space-x-3">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
                     className="flex items-center"
                   >
                     View Details
                     <ArrowRight className="h-4 w-4 ml-1" />
                   </Button>
-                  
+
                   <ProtectedAction
                     requireAuth={true}
                     fallback={
@@ -241,15 +241,15 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger }) =
                       </Button>
                     }
                   >
-                    <Button 
+                    <Button
                       variant="primary"
                       size="sm"
                       onClick={(e) => handleBookRide(ride.id, e)}
                       disabled={bookingRide === ride.id || ride.seats === 0 || ride.user_id === user?.id}
                     >
-                      {bookingRide === ride.id ? 'Booking...' : 
-                       ride.seats === 0 ? 'Full' : 
-                       ride.user_id === user?.id ? 'Your Ride' : 'Quick Book'}
+                      {bookingRide === ride.id ? 'Booking...' :
+                        ride.seats === 0 ? 'Full' :
+                          ride.user_id === user?.id ? 'Your Ride' : 'Quick Book'}
                     </Button>
                   </ProtectedAction>
                 </div>
