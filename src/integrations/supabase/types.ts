@@ -38,29 +38,159 @@ export type Database = {
           },
         ]
       }
+      conversations: {
+        Row: {
+          created_at: string | null
+          id: string
+          participant1: string | null
+          participant2: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          participant1?: string | null
+          participant2?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          participant1?: string | null
+          participant2?: string | null
+        }
+        Relationships: []
+      }
+      messages: {
+        Row: {
+          content: string | null
+          conversation_id: string | null
+          id: string
+          seen: boolean | null
+          sender_id: string | null
+          sent_at: string | null
+        }
+        Insert: {
+          content?: string | null
+          conversation_id?: string | null
+          id?: string
+          seen?: boolean | null
+          sender_id?: string | null
+          sent_at?: string | null
+        }
+        Update: {
+          content?: string | null
+          conversation_id?: string | null
+          id?: string
+          seen?: boolean | null
+          sender_id?: string | null
+          sent_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
+          animals: boolean | null
+          avatar_url: string | null
+          bio: string | null
+          children: boolean | null
           created_at: string
           email: string | null
           full_name: string | null
+          hide_partial_routes: boolean | null
           id: string
+          instagram_handle: string | null
+          luggage_size: string | null
+          max_back_seat_passengers: boolean | null
+          music: boolean | null
+          search_radius: string | null
+          smoking: boolean | null
           updated_at: string
+          username: string | null
         }
         Insert: {
+          animals?: boolean | null
+          avatar_url?: string | null
+          bio?: string | null
+          children?: boolean | null
           created_at?: string
           email?: string | null
           full_name?: string | null
+          hide_partial_routes?: boolean | null
           id: string
+          instagram_handle?: string | null
+          luggage_size?: string | null
+          max_back_seat_passengers?: boolean | null
+          music?: boolean | null
+          search_radius?: string | null
+          smoking?: boolean | null
           updated_at?: string
+          username?: string | null
         }
         Update: {
+          animals?: boolean | null
+          avatar_url?: string | null
+          bio?: string | null
+          children?: boolean | null
           created_at?: string
           email?: string | null
           full_name?: string | null
+          hide_partial_routes?: boolean | null
           id?: string
+          instagram_handle?: string | null
+          luggage_size?: string | null
+          max_back_seat_passengers?: boolean | null
+          music?: boolean | null
+          search_radius?: string | null
+          smoking?: boolean | null
           updated_at?: string
+          username?: string | null
         }
         Relationships: []
+      }
+      reviews: {
+        Row: {
+          comment: string | null
+          created_at: string | null
+          driver_id: string | null
+          id: string
+          rating: number
+          reviewer_id: string | null
+          ride_id: string | null
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string | null
+          driver_id?: string | null
+          id?: string
+          rating: number
+          reviewer_id?: string | null
+          ride_id?: string | null
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string | null
+          driver_id?: string | null
+          id?: string
+          rating?: number
+          reviewer_id?: string | null
+          ride_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_ride_id_fkey"
+            columns: ["ride_id"]
+            isOneToOne: false
+            referencedRelation: "rides"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       rides: {
         Row: {

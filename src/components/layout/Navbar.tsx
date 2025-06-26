@@ -1,12 +1,15 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "../shared/Button";
-import { Menu, X, User, LogOut } from "lucide-react";
+import { Menu, X, User, LogOut, Settings } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ThemeToggle } from "./ThemeToggle";
 import { useAuth } from "@/hooks/useAuth";
 import { AuthModal } from "../auth/AuthModal";
+import { ProfileSettingsModal } from "../profile/ProfileSettingsModal";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { getProfile, SupabaseProfile } from "@/lib/supabase";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,6 +22,8 @@ export function Navbar() {
   const isMobile = useIsMobile();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showProfileSettings, setShowProfileSettings] = useState(false);
+  const [profile, setProfile] = useState<SupabaseProfile | null>(null);
   const location = useLocation();
   const { user, signOut, loading } = useAuth();
 
@@ -31,11 +36,37 @@ export function Navbar() {
     { name: "Docs", path: "/documentation" },
   ];
 
+  useEffect(() => {
+    if (user) {
+      loadProfile();
+    }
+  }, [user]);
+
+  const loadProfile = async () => {
+    try {
+      const profileData = await getProfile();
+      setProfile(profileData);
+    } catch (error) {
+      console.error("Error loading profile:", error);
+    }
+  };
+
   const isActive = (path: string) => {
     return location.pathname === path ? "text-brand-600" : "text-foreground";
   };
 
   const closeMenu = () => setIsMenuOpen(false);
+
+  const getDisplayName = () => {
+    if (profile?.username) return profile.username;
+    if (user?.email) return user.email.split('@')[0];
+    return 'User';
+  };
+
+  const getInitials = () => {
+    const name = getDisplayName();
+    return name.charAt(0).toUpperCase();
+  };
 
   return (
     <>
@@ -60,13 +91,25 @@ export function Navbar() {
                 {user ? (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon">
-                        <User className="h-5 w-5" />
+                      <Button variant="ghost" size="sm" className="p-1">
+                        <Avatar className="h-8 w-8">
+                          {profile?.avatar_url ? (
+                            <AvatarImage src={profile.avatar_url} alt="Profile" />
+                          ) : (
+                            <AvatarFallback className="bg-brand-100 text-brand-600">
+                              {getInitials()}
+                            </AvatarFallback>
+                          )}
+                        </Avatar>
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
+                    <DropdownMenuContent align="end" className="bg-background border">
                       <DropdownMenuItem asChild>
                         <Link to="/dashboard">Dashboard</Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setShowProfileSettings(true)}>
+                        <Settings className="mr-2 h-4 w-4" />
+                        Profile Settings
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={signOut}>
@@ -135,13 +178,25 @@ export function Navbar() {
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="sm" className="gap-2">
-                        <User className="h-4 w-4" />
-                        {user.email}
+                        <Avatar className="h-6 w-6">
+                          {profile?.avatar_url ? (
+                            <AvatarImage src={profile.avatar_url} alt="Profile" />
+                          ) : (
+                            <AvatarFallback className="bg-brand-100 text-brand-600 text-xs">
+                              {getInitials()}
+                            </AvatarFallback>
+                          )}
+                        </Avatar>
+                        <span className="text-sm">{getDisplayName()}</span>
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
+                    <DropdownMenuContent align="end" className="bg-background border">
                       <DropdownMenuItem asChild>
                         <Link to="/dashboard">Dashboard</Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setShowProfileSettings(true)}>
+                        <Settings className="mr-2 h-4 w-4" />
+                        Profile Settings
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={signOut}>
@@ -169,6 +224,11 @@ export function Navbar() {
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
+      />
+
+      <ProfileSettingsModal
+        isOpen={showProfileSettings}
+        onClose={() => setShowProfileSettings(false)}
       />
     </>
   );

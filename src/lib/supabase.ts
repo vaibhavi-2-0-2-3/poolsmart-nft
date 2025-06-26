@@ -1,9 +1,22 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 export interface SupabaseProfile {
   id: string;
   email: string | null;
   full_name: string | null;
+  username: string | null;
+  avatar_url: string | null;
+  bio: string | null;
+  search_radius: string;
+  luggage_size: string;
+  hide_partial_routes: boolean;
+  max_back_seat_passengers: boolean;
+  music: boolean;
+  animals: boolean;
+  children: boolean;
+  smoking: boolean;
+  instagram_handle: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -27,6 +40,16 @@ export interface SupabaseBooking {
   ride_id: string;
   user_id: string;
   status: string;
+}
+
+export interface SupabaseReview {
+  id: string;
+  ride_id: string;
+  driver_id: string;
+  reviewer_id: string;
+  rating: number;
+  comment: string | null;
+  created_at: string;
 }
 
 // Rides API
@@ -171,6 +194,101 @@ export const getProfile = async (): Promise<SupabaseProfile | null> => {
 
   if (error) {
     console.error("Error fetching profile:", error);
+    return null;
+  }
+
+  return data;
+};
+
+export const updateProfile = async (profileData: Partial<SupabaseProfile>): Promise<boolean> => {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("User not authenticated");
+  }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      ...profileData,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", user.id);
+
+  if (error) {
+    console.error("Error updating profile:", error);
+    throw error;
+  }
+
+  return true;
+};
+
+// Reviews API
+export const createReview = async (reviewData: {
+  ride_id: string;
+  driver_id: string;
+  rating: number;
+  comment?: string;
+}): Promise<boolean> => {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("User not authenticated");
+  }
+
+  const { error } = await supabase.from("reviews").insert([
+    {
+      ...reviewData,
+      reviewer_id: user.id,
+    },
+  ]);
+
+  if (error) {
+    console.error("Error creating review:", error);
+    throw error;
+  }
+
+  return true;
+};
+
+export const getDriverReviews = async (driverId: string): Promise<SupabaseReview[]> => {
+  const { data, error } = await supabase
+    .from("reviews")
+    .select("*")
+    .eq("driver_id", driverId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching driver reviews:", error);
+    throw error;
+  }
+
+  return data || [];
+};
+
+export const getUserReview = async (rideId: string, driverId: string): Promise<SupabaseReview | null> => {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from("reviews")
+    .select("*")
+    .eq("ride_id", rideId)
+    .eq("driver_id", driverId)
+    .eq("reviewer_id", user.id)
+    .single();
+
+  if (error && error.code !== 'PGRST116') {
+    console.error("Error fetching user review:", error);
     return null;
   }
 
