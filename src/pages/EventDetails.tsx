@@ -9,10 +9,11 @@ import { getEventById, updateEventRSVP } from '@/lib/eventsApi';
 import { Event } from '@/lib/eventsApi';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { ChatDrawer } from '@/components/chat/ChatDrawer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { MessagingModal } from '@/components/messaging/MessagingModal';
+import { createBooking } from '@/lib/supabase';
 
 const EventDetails = () => {
   const { id: eventId } = useParams<{ id: string }>();
@@ -20,6 +21,7 @@ const EventDetails = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdatingRSVP, setIsUpdatingRSVP] = useState(false);
   const [showCarpoolOptions, setShowCarpoolOptions] = useState(false);
+  const [messagingModal, setMessagingModal] = useState<{isOpen: boolean, recipientId: string, recipientName: string} | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -41,7 +43,7 @@ const EventDetails = () => {
     
     fetchEvent();
   }, [eventId]);
-  
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { 
@@ -116,9 +118,84 @@ const EventDetails = () => {
     }
   };
 
+  const handleOfferRide = () => {
+    if (!user) {
+      toast({
+        title: "Please sign in",
+        description: "You need to be signed in to offer a ride.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!event) return;
+
+    // Navigate to rides page with event info pre-filled
+    navigate('/rides', {
+      state: {
+        eventId: event.id,
+        eventName: event.title,
+        destination: event.location,
+        date: event.date.split('T')[0],
+        time: event.date.split('T')[1]?.substring(0, 5) || '09:00'
+      }
+    });
+  };
+
+  const handleRequestSeat = async (rideId: string, driverName: string) => {
+    if (!user) {
+      toast({
+        title: "Please sign in",
+        description: "You need to be signed in to request a seat.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      await createBooking(rideId);
+      toast({
+        title: "Seat requested!",
+        description: `Your request has been sent to ${driverName}. They will be notified.`,
+      });
+    } catch (error) {
+      console.error('Error requesting seat:', error);
+      toast({
+        title: "Request failed",
+        description: "There was an error requesting the seat. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleMessageDriver = (driverId: string, driverName: string) => {
+    if (!user) {
+      toast({
+        title: "Please sign in",
+        description: "You need to be signed in to message drivers.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setMessagingModal({
+      isOpen: true,
+      recipientId: driverId,
+      recipientName: driverName
+    });
+  };
+
+  const handleCallDriver = (driverName: string) => {
+    toast({
+      title: "Contact Driver",
+      description: `Please use the message feature to coordinate with ${driverName}. Phone calls will be available in a future update.`,
+    });
+  };
+
   const mockCarpoolOptions = [
     {
       id: '1',
+      driverId: 'driver-1',
       driverName: 'Sarah M.',
       driverRating: 4.8,
       departurePoint: 'Baga Beach Area',
@@ -129,6 +206,7 @@ const EventDetails = () => {
     },
     {
       id: '2',
+      driverId: 'driver-2',
       driverName: 'Raj K.',
       driverRating: 4.9,
       departurePoint: 'Calangute Market',
@@ -298,13 +376,25 @@ const EventDetails = () => {
                         </div>
                         
                         <div className="flex gap-2">
-                          <Button size="sm" className="flex-1">
+                          <Button 
+                            size="sm" 
+                            className="flex-1"
+                            onClick={() => handleRequestSeat(option.id, option.driverName)}
+                          >
                             Request Seat
                           </Button>
-                          <Button variant="outline" size="sm">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleMessageDriver(option.driverId, option.driverName)}
+                          >
                             <MessageCircle className="h-4 w-4" />
                           </Button>
-                          <Button variant="outline" size="sm">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleCallDriver(option.driverName)}
+                          >
                             <Phone className="h-4 w-4" />
                           </Button>
                         </div>
@@ -314,7 +404,11 @@ const EventDetails = () => {
                     <Separator />
                     
                     <div className="text-center">
-                      <Button variant="outline" className="w-full">
+                      <Button 
+                        variant="outline" 
+                        className="w-full"
+                        onClick={handleOfferRide}
+                      >
                         <Car className="h-4 w-4 mr-2" />
                         Offer a Ride Instead
                       </Button>
@@ -433,23 +527,23 @@ const EventDetails = () => {
                   </Button>
                 </CardContent>
               </Card>
-
-              {/* Chat/Discussion */}
-              {event.rsvpStatus === 'attending' && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Event Discussion</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ChatDrawer eventId={event.id} eventTitle={event.title} />
-                  </CardContent>
-                </Card>
-              )}
             </div>
           </div>
         </div>
       </main>
       <Footer />
+
+      {/* Messaging Modal */}
+      {messagingModal && (
+        <MessagingModal
+          isOpen={messagingModal.isOpen}
+          onClose={() => setMessagingModal(null)}
+          recipientId={messagingModal.recipientId}
+          recipientName={messagingModal.recipientName}
+          currentUserId={user?.id || ''}
+          currentUserName={user?.user_metadata?.full_name || user?.email || 'Anonymous'}
+        />
+      )}
     </div>
   );
 };

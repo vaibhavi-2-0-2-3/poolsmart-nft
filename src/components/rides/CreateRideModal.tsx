@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/shared/Button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { createRide } from '@/lib/supabase';
+import { linkRideToEvent } from '@/lib/eventsApi';
 import { MapPin, Calendar, Clock, Users, DollarSign } from 'lucide-react';
 import { ProtectedAction } from '../auth/ProtectedAction';
 
@@ -14,12 +15,20 @@ interface CreateRideModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  eventData?: {
+    eventId: string;
+    eventName: string;
+    destination: string;
+    date: string;
+    time: string;
+  };
 }
 
 export const CreateRideModal: React.FC<CreateRideModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
+  eventData,
 }) => {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -32,6 +41,18 @@ export const CreateRideModal: React.FC<CreateRideModalProps> = ({
     seats: '1',
     price: '25',
   });
+
+  // Pre-fill form with event data
+  useEffect(() => {
+    if (eventData) {
+      setFormData(prev => ({
+        ...prev,
+        destination: eventData.destination,
+        date: eventData.date,
+        time: eventData.time,
+      }));
+    }
+  }, [eventData]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -65,9 +86,21 @@ export const CreateRideModal: React.FC<CreateRideModalProps> = ({
       
       const rideId = await createRide(rideData);
       
+      // Link ride to event if eventData is provided
+      if (eventData && eventData.eventId) {
+        try {
+          await linkRideToEvent(rideId, eventData.eventId);
+        } catch (linkError) {
+          console.error('Error linking ride to event:', linkError);
+          // Don't fail the whole operation if linking fails
+        }
+      }
+      
       toast({
         title: "Ride created",
-        description: "Your ride has been successfully created!",
+        description: eventData 
+          ? `Your ride to ${eventData.eventName} has been created!`
+          : "Your ride has been successfully created!",
       });
       
       // Reset form
@@ -98,7 +131,9 @@ export const CreateRideModal: React.FC<CreateRideModalProps> = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold">Offer a Ride</DialogTitle>
+          <DialogTitle className="text-xl font-bold">
+            {eventData ? `Offer Ride to ${eventData.eventName}` : 'Offer a Ride'}
+          </DialogTitle>
         </DialogHeader>
         
         <ProtectedAction requireAuth={true}>
@@ -132,8 +167,14 @@ export const CreateRideModal: React.FC<CreateRideModalProps> = ({
                     value={formData.destination}
                     onChange={handleChange}
                     required
+                    disabled={!!eventData}
                   />
                 </div>
+                {eventData && (
+                  <p className="text-xs text-muted-foreground">
+                    Destination pre-filled from event
+                  </p>
+                )}
               </div>
               
               <div className="grid grid-cols-2 gap-4">
@@ -190,7 +231,7 @@ export const CreateRideModal: React.FC<CreateRideModalProps> = ({
                 </div>
                 
                 <div className="grid gap-2">
-                  <Label htmlFor="price">Price ($)</Label>
+                  <Label htmlFor="price">Price (₹)</Label>
                   <div className="relative">
                     <DollarSign className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input

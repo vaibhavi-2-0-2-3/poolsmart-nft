@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Navbar } from '@/components/layout/Navbar';
 import RidesList from '@/components/rides/RidesList';
 import { RidesFilter } from '@/components/rides/RidesFilter';
@@ -19,16 +20,26 @@ type SearchParams = {
 };
 
 const Rides = () => {
+  const location = useLocation();
+  const eventData = location.state as any;
+  
   const [searchParams, setSearchParams] = useState<SearchParams>({
     from: '',
-    to: '',
-    date: '',
-    time: '',
+    to: eventData?.destination || '',
+    date: eventData?.date || '',
+    time: eventData?.time || '',
     seats: '1',
   });
   const [filterDialogOpen, setFilterDialogOpen] = useState(false);
   const [showCreateRideForm, setShowCreateRideForm] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // Auto-open create ride modal if coming from an event
+  useEffect(() => {
+    if (eventData) {
+      setShowCreateRideForm(true);
+    }
+  }, [eventData]);
 
   const handleSearch = (params: SearchParams) => {
     setSearchParams(params);
@@ -61,7 +72,7 @@ const Rides = () => {
           <div className="mb-8">
             <h1 className="text-3xl font-bold mb-2">Find a Ride</h1>
             <p className="text-muted-foreground">
-              Search for available rides or offer your own
+              {eventData ? `Find rides to ${eventData.eventName}` : 'Search for available rides or offer your own'}
             </p>
           </div>
 
@@ -133,7 +144,7 @@ const Rides = () => {
               <Card className="p-6">
                 <h3 className="text-xl font-semibold mb-4">Offer a Ride</h3>
                 <p className="text-muted-foreground mb-6">
-                  Share your journey and earn money.
+                  {eventData ? `Offer a ride to ${eventData.eventName}` : 'Share your journey and earn money.'}
                 </p>
                 <Button
                   variant="secondary"
@@ -150,15 +161,15 @@ const Rides = () => {
                 <ul className="space-y-2">
                   <li className="flex items-center gap-2">
                     <MapPin className="h-4 w-4 text-muted-foreground" />
-                    <span>New York, NY</span>
+                    <span>Panaji, Goa</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <MapPin className="h-4 w-4 text-muted-foreground" />
-                    <span>Los Angeles, CA</span>
+                    <span>Margao, Goa</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <MapPin className="h-4 w-4 text-muted-foreground" />
-                    <span>Chicago, IL</span>
+                    <span>Calangute, Goa</span>
                   </li>
                 </ul>
               </Card>
@@ -171,6 +182,7 @@ const Rides = () => {
         isOpen={showCreateRideForm}
         onClose={() => setShowCreateRideForm(false)}
         onSuccess={handleCreateRideSuccess}
+        eventData={eventData}
       />
     </div>
   );
