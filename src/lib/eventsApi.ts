@@ -1,211 +1,184 @@
-import { collection, getDocs, getDoc, doc, query, where, addDoc, updateDoc } from "firebase/firestore";
-import { DEMO_EVENTS } from "@/components/home/EventsSlider";
+
+import { supabase } from "@/integrations/supabase/client";
 
 export interface Event {
   id: string;
   title: string;
-  description: string;
-  date: string;
+  name?: string;
+  description: string | null;
   location: string;
-  imageUrl?: string;
-  organizerName: string;
+  date: string;
+  date_time?: string;
+  imageUrl?: string | null;
+  image_url?: string | null;
+  organizerName: string | null;
+  organizer_name?: string | null;
+  organizerContact?: string | null;
+  organizer_contact?: string | null;
+  category: string | null;
+  maxAttendees?: number | null;
+  max_attendees?: number | null;
   price?: number;
-  attendees?: string[]; // Add attendees array to track who registered
+  attendees?: string[];
+  rsvpStatus?: 'attending' | 'maybe' | 'not_attending' | null;
+  rsvpCount?: number;
+  createdAt?: string;
+  created_at?: string;
+  updatedAt?: string;
+  updated_at?: string;
 }
 
-// Import the initialized db from firebase.ts
-import { db } from "./firebase";
+export interface EventRSVP {
+  id: string;
+  event_id: string;
+  user_id: string;
+  status: 'attending' | 'maybe' | 'not_attending';
+  created_at: string;
+}
 
-// Initialize events in Firebase if they don't exist
-export const initializeEventsInFirebase = async (): Promise<void> => {
-  try {
-    // Check if events already exist
-    const eventsSnapshot = await getDocs(collection(db, "events"));
-    
-    if (eventsSnapshot.empty) {
-      console.log("No events found, initializing with demo data");
-      
-      // Add demo events to Firebase
-      for (const event of DEMO_EVENTS) {
-        const { id, ...eventData } = event;
-        await addDoc(collection(db, "events"), {
-          ...eventData,
-          attendees: [] // Initialize with empty attendees array
-        });
-      }
-      
-      console.log("Successfully initialized events in Firebase");
-    } else {
-      console.log(`Found ${eventsSnapshot.size} events in Firebase`);
-    }
-  } catch (error) {
-    console.error("Error initializing events in Firebase:", error);
-  }
+export interface EventRide {
+  id: string;
+  event_id: string;
+  ride_id: string;
+  created_at: string;
+}
+
+// Normalize event data for consistent interface
+const normalizeEvent = (event: any): Event => {
+  return {
+    id: event.id,
+    title: event.name || event.title,
+    name: event.name,
+    description: event.description,
+    location: event.location,
+    date: event.date_time || event.date,
+    date_time: event.date_time,
+    imageUrl: event.image_url || event.imageUrl,
+    image_url: event.image_url,
+    organizerName: event.organizer_name || event.organizerName,
+    organizer_name: event.organizer_name,
+    organizerContact: event.organizer_contact || event.organizerContact,
+    organizer_contact: event.organizer_contact,
+    category: event.category,
+    maxAttendees: event.max_attendees || event.maxAttendees,
+    max_attendees: event.max_attendees,
+    price: event.price || 0,
+    attendees: event.attendees || [],
+    rsvpStatus: event.rsvpStatus,
+    rsvpCount: event.rsvpCount || 0,
+    createdAt: event.created_at || event.createdAt,
+    created_at: event.created_at,
+    updatedAt: event.updated_at || event.updatedAt,
+    updated_at: event.updated_at,
+  };
 };
 
-// Get all events
 export const getAllEvents = async (): Promise<Event[]> => {
   try {
-    const eventsSnapshot = await getDocs(collection(db, "events"));
-    
-    if (eventsSnapshot.empty) {
-      console.log("No events found in Firebase, returning demo data");
-      return DEMO_EVENTS;
+    const { data: events, error } = await supabase
+      .from('events')
+      .select('*')
+      .order('date_time', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching events:', error);
+      throw error;
     }
+
+    // Get current user's RSVPs
+    const { data: { user } } = await supabase.auth.getUser();
+    let userRSVPs: EventRSVP[] = [];
     
-    const events: Event[] = [];
-    eventsSnapshot.forEach((doc) => {
-      const data = doc.data();
-      events.push({
-        id: doc.id,
-        title: data.title,
-        description: data.description,
-        date: data.date,
-        location: data.location,
-        imageUrl: data.imageUrl,
-        organizerName: data.organizerName,
-        price: data.price,
-        attendees: data.attendees || [],
+    if (user) {
+      const { data: rsvps, error: rsvpError } = await supabase
+        .from('event_rsvps')
+        .select('*')
+        .eq('user_id', user.id);
+      
+      if (!rsvpError) {
+        userRSVPs = rsvps || [];
+      }
+    }
+
+    // Get RSVP counts for each event
+    const { data: rsvpCounts, error: countError } = await supabase
+      .from('event_rsvps')
+      .select('event_id, status')
+      .eq('status', 'attending');
+
+    const eventRSVPCounts = rsvpCounts?.reduce((acc: Record<string, number>, rsvp) => {
+      acc[rsvp.event_id] = (acc[rsvp.event_id] || 0) + 1;
+      return acc;
+    }, {}) || {};
+
+    const normalizedEvents = events?.map(event => {
+      const userRSVP = userRSVPs.find(rsvp => rsvp.event_id === event.id);
+      return normalizeEvent({
+        ...event,
+        rsvpStatus: userRSVP?.status || null,
+        rsvpCount: eventRSVPCounts[event.id] || 0
       });
-    });
-    
-    return events;
+    }) || [];
+
+    return normalizedEvents;
   } catch (error) {
-    console.error("Error getting events from Firebase:", error);
-    // Fallback to demo data
-    return DEMO_EVENTS;
+    console.error('Error in getAllEvents:', error);
+    throw error;
   }
 };
 
-// Get event by ID
 export const getEventById = async (eventId: string): Promise<Event | null> => {
   try {
-    // First check Firebase
-    const eventDoc = await getDoc(doc(db, "events", eventId));
-    
-    if (eventDoc.exists()) {
-      const data = eventDoc.data();
-      return {
-        id: eventDoc.id,
-        title: data.title,
-        description: data.description,
-        date: data.date,
-        location: data.location,
-        imageUrl: data.imageUrl,
-        organizerName: data.organizerName,
-        price: data.price,
-        attendees: data.attendees || [],
-      };
-    }
-    
-    // If not found in Firebase, check demo events
-    const demoEvent = DEMO_EVENTS.find(event => event.id === eventId);
-    if (demoEvent) {
-      return demoEvent;
-    }
-    
-    return null;
-  } catch (error) {
-    console.error("Error getting event by ID:", error);
-    
-    // Fallback to demo data
-    const demoEvent = DEMO_EVENTS.find(event => event.id === eventId);
-    return demoEvent || null;
-  }
-};
+    const { data: event, error } = await supabase
+      .from('events')
+      .select('*')
+      .eq('id', eventId)
+      .single();
 
-// Register for an event
-export const registerForEvent = async (eventId: string, userAddress: string): Promise<boolean> => {
-  try {
-    console.log(`Registering user ${userAddress} for event ${eventId}`);
-    const eventRef = doc(db, "events", eventId);
-    const eventDoc = await getDoc(eventRef);
-    
-    if (eventDoc.exists()) {
-      const eventData = eventDoc.data();
-      const attendees = eventData.attendees || [];
-      
-      // Check if user is already registered
-      if (attendees.includes(userAddress)) {
-        console.log("User already registered for this event");
-        return false;
-      }
-      
-      // Add user to attendees list
-      attendees.push(userAddress);
-      
-      // Update the event document with the new attendees list
-      await updateDoc(eventRef, { attendees });
-      
-      console.log("User successfully registered for event");
-      console.log("Updated attendees list:", attendees);
-      return true;
+    if (error) {
+      console.error('Error fetching event:', error);
+      return null;
     }
-    
-    // If the event doesn't exist in Firebase but exists in demo data
-    // We should create the event in Firebase first
-    const demoEvent = DEMO_EVENTS.find(event => event.id === eventId);
-    if (demoEvent) {
-      const { id, ...eventData } = demoEvent;
-      const newEventRef = doc(db, "events", eventId);
-      await updateDoc(newEventRef, {
-        ...eventData,
-        attendees: [userAddress]
-      });
-      console.log("Created new event in Firebase and registered user");
-      return true;
-    }
-    
-    return false;
-  } catch (error) {
-    console.error("Error registering for event:", error);
-    return false;
-  }
-};
 
-// Get user's registered events
-export const getUserRegisteredEvents = async (userAddress: string): Promise<Event[]> => {
-  try {
-    console.log("Fetching registered events for user:", userAddress);
-    const eventsSnapshot = await getDocs(collection(db, "events"));
+    if (!event) return null;
+
+    // Get current user's RSVP
+    const { data: { user } } = await supabase.auth.getUser();
+    let userRSVP: EventRSVP | null = null;
     
-    if (eventsSnapshot.empty) {
-      console.log("No events found in Firebase");
-      return [];
-    }
-    
-    const registeredEvents: Event[] = [];
-    
-    eventsSnapshot.forEach((doc) => {
-      const data = doc.data();
-      const attendees = data.attendees || [];
+    if (user) {
+      const { data: rsvp, error: rsvpError } = await supabase
+        .from('event_rsvps')
+        .select('*')
+        .eq('event_id', eventId)
+        .eq('user_id', user.id)
+        .single();
       
-      // Check if the user is in the attendees list
-      if (attendees.includes(userAddress)) {
-        console.log(`User ${userAddress} is registered for event ${doc.id}`);
-        registeredEvents.push({
-          id: doc.id,
-          title: data.title,
-          description: data.description,
-          date: data.date,
-          location: data.location,
-          imageUrl: data.imageUrl,
-          organizerName: data.organizerName,
-          price: data.price,
-          attendees: attendees
-        });
+      if (!rsvpError && rsvp) {
+        userRSVP = rsvp;
       }
+    }
+
+    // Get RSVP count
+    const { data: rsvpCount, error: countError } = await supabase
+      .from('event_rsvps')
+      .select('id')
+      .eq('event_id', eventId)
+      .eq('status', 'attending');
+
+    const normalizedEvent = normalizeEvent({
+      ...event,
+      rsvpStatus: userRSVP?.status || null,
+      rsvpCount: rsvpCount?.length || 0
     });
-    
-    console.log(`Found ${registeredEvents.length} registered events for user`);
-    return registeredEvents;
+
+    return normalizedEvent;
   } catch (error) {
-    console.error("Error getting user's registered events:", error);
-    return [];
+    console.error('Error in getEventById:', error);
+    return null;
   }
 };
 
-// Search events by criteria
 export const searchEvents = async (criteria: {
   keyword?: string;
   location?: string;
@@ -213,41 +186,207 @@ export const searchEvents = async (criteria: {
   endDate?: string;
 }): Promise<Event[]> => {
   try {
-    let events = await getAllEvents();
-    
+    let query = supabase
+      .from('events')
+      .select('*')
+      .order('date_time', { ascending: true });
+
     if (criteria.keyword) {
-      const keyword = criteria.keyword.toLowerCase();
-      events = events.filter(event => 
-        event.title.toLowerCase().includes(keyword) || 
-        event.description.toLowerCase().includes(keyword) ||
-        event.organizerName.toLowerCase().includes(keyword)
-      );
+      query = query.or(`name.ilike.%${criteria.keyword}%,description.ilike.%${criteria.keyword}%`);
     }
-    
+
     if (criteria.location) {
-      const location = criteria.location.toLowerCase();
-      events = events.filter(event => 
-        event.location.toLowerCase().includes(location)
-      );
+      query = query.ilike('location', `%${criteria.location}%`);
     }
-    
+
     if (criteria.startDate) {
-      const startDate = new Date(criteria.startDate);
-      events = events.filter(event => 
-        new Date(event.date) >= startDate
-      );
+      query = query.gte('date_time', criteria.startDate);
     }
-    
+
     if (criteria.endDate) {
-      const endDate = new Date(criteria.endDate);
-      events = events.filter(event => 
-        new Date(event.date) <= endDate
-      );
+      query = query.lte('date_time', criteria.endDate);
     }
-    
-    return events;
+
+    const { data: events, error } = await query;
+
+    if (error) {
+      console.error('Error searching events:', error);
+      throw error;
+    }
+
+    return events?.map(event => normalizeEvent(event)) || [];
   } catch (error) {
-    console.error("Error searching events:", error);
+    console.error('Error in searchEvents:', error);
+    throw error;
+  }
+};
+
+export const registerForEvent = async (eventId: string, userId: string): Promise<boolean> => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    // Check if already registered
+    const { data: existingRSVP, error: checkError } = await supabase
+      .from('event_rsvps')
+      .select('*')
+      .eq('event_id', eventId)
+      .eq('user_id', user.id)
+      .single();
+
+    if (checkError && checkError.code !== 'PGRST116') {
+      console.error('Error checking existing RSVP:', checkError);
+      throw checkError;
+    }
+
+    if (existingRSVP) {
+      // Update existing RSVP to attending
+      const { error: updateError } = await supabase
+        .from('event_rsvps')
+        .update({ status: 'attending' })
+        .eq('id', existingRSVP.id);
+
+      if (updateError) {
+        console.error('Error updating RSVP:', updateError);
+        throw updateError;
+      }
+    } else {
+      // Create new RSVP
+      const { error: insertError } = await supabase
+        .from('event_rsvps')
+        .insert({
+          event_id: eventId,
+          user_id: user.id,
+          status: 'attending'
+        });
+
+      if (insertError) {
+        console.error('Error creating RSVP:', insertError);
+        throw insertError;
+      }
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error in registerForEvent:', error);
+    throw error;
+  }
+};
+
+export const updateEventRSVP = async (eventId: string, status: 'attending' | 'maybe' | 'not_attending'): Promise<boolean> => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    // Check if RSVP exists
+    const { data: existingRSVP, error: checkError } = await supabase
+      .from('event_rsvps')
+      .select('*')
+      .eq('event_id', eventId)
+      .eq('user_id', user.id)
+      .single();
+
+    if (checkError && checkError.code !== 'PGRST116') {
+      console.error('Error checking existing RSVP:', checkError);
+      throw checkError;
+    }
+
+    if (existingRSVP) {
+      // Update existing RSVP
+      const { error: updateError } = await supabase
+        .from('event_rsvps')
+        .update({ status })
+        .eq('id', existingRSVP.id);
+
+      if (updateError) {
+        console.error('Error updating RSVP:', updateError);
+        throw updateError;
+      }
+    } else {
+      // Create new RSVP
+      const { error: insertError } = await supabase
+        .from('event_rsvps')
+        .insert({
+          event_id: eventId,
+          user_id: user.id,
+          status
+        });
+
+      if (insertError) {
+        console.error('Error creating RSVP:', insertError);
+        throw insertError;
+      }
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error in updateEventRSVP:', error);
+    throw error;
+  }
+};
+
+export const getEventAttendees = async (eventId: string): Promise<string[]> => {
+  try {
+    const { data: rsvps, error } = await supabase
+      .from('event_rsvps')
+      .select('user_id')
+      .eq('event_id', eventId)
+      .eq('status', 'attending');
+
+    if (error) {
+      console.error('Error fetching event attendees:', error);
+      throw error;
+    }
+
+    return rsvps?.map(rsvp => rsvp.user_id) || [];
+  } catch (error) {
+    console.error('Error in getEventAttendees:', error);
+    return [];
+  }
+};
+
+export const linkRideToEvent = async (rideId: string, eventId: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('event_rides')
+      .insert({
+        ride_id: rideId,
+        event_id: eventId
+      });
+
+    if (error) {
+      console.error('Error linking ride to event:', error);
+      throw error;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error in linkRideToEvent:', error);
+    throw error;
+  }
+};
+
+export const getEventRides = async (eventId: string): Promise<EventRide[]> => {
+  try {
+    const { data: eventRides, error } = await supabase
+      .from('event_rides')
+      .select('*')
+      .eq('event_id', eventId);
+
+    if (error) {
+      console.error('Error fetching event rides:', error);
+      throw error;
+    }
+
+    return eventRides || [];
+  } catch (error) {
+    console.error('Error in getEventRides:', error);
     return [];
   }
 };

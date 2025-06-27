@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 export interface SupabaseProfile {
@@ -49,6 +48,36 @@ export interface SupabaseReview {
   reviewer_id: string;
   rating: number;
   comment: string | null;
+  created_at: string;
+}
+
+export interface SupabaseEvent {
+  id: string;
+  name: string;
+  description: string | null;
+  location: string;
+  date_time: string;
+  image_url: string | null;
+  organizer_name: string | null;
+  organizer_contact: string | null;
+  category: string | null;
+  max_attendees: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SupabaseEventRSVP {
+  id: string;
+  event_id: string;
+  user_id: string;
+  status: 'attending' | 'maybe' | 'not_attending';
+  created_at: string;
+}
+
+export interface SupabaseEventRide {
+  id: string;
+  event_id: string;
+  ride_id: string;
   created_at: string;
 }
 
@@ -174,6 +203,98 @@ export const getUserRides = async (): Promise<SupabaseRide[]> => {
   }
 
   return data || [];
+};
+
+// Events API
+export const getEvents = async (): Promise<SupabaseEvent[]> => {
+  const { data, error } = await supabase
+    .from("events")
+    .select("*")
+    .order("date_time", { ascending: true });
+
+  if (error) {
+    console.error("Error fetching events:", error);
+    throw error;
+  }
+
+  return data || [];
+};
+
+export const getEventRSVPs = async (eventId: string): Promise<SupabaseEventRSVP[]> => {
+  const { data, error } = await supabase
+    .from("event_rsvps")
+    .select("*")
+    .eq("event_id", eventId);
+
+  if (error) {
+    console.error("Error fetching event RSVPs:", error);
+    throw error;
+  }
+
+  return data || [];
+};
+
+export const createEventRSVP = async (eventId: string, status: 'attending' | 'maybe' | 'not_attending'): Promise<boolean> => {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("User not authenticated");
+  }
+
+  const { error } = await supabase.from("event_rsvps").insert([
+    {
+      event_id: eventId,
+      user_id: user.id,
+      status: status,
+    },
+  ]);
+
+  if (error) {
+    console.error("Error creating event RSVP:", error);
+    throw error;
+  }
+
+  return true;
+};
+
+export const updateEventRSVPStatus = async (eventId: string, status: 'attending' | 'maybe' | 'not_attending'): Promise<boolean> => {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("User not authenticated");
+  }
+
+  const { error } = await supabase
+    .from("event_rsvps")
+    .update({ status })
+    .eq("event_id", eventId)
+    .eq("user_id", user.id);
+
+  if (error) {
+    console.error("Error updating event RSVP:", error);
+    throw error;
+  }
+
+  return true;
+};
+
+export const getEventAttendees = async (eventId: string): Promise<string[]> => {
+  const { data, error } = await supabase
+    .from("event_rsvps")
+    .select("user_id")
+    .eq("event_id", eventId)
+    .eq("status", "attending");
+
+  if (error) {
+    console.error("Error fetching event attendees:", error);
+    throw error;
+  }
+
+  return data?.map(rsvp => rsvp.user_id) || [];
 };
 
 // Profile API

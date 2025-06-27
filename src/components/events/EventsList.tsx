@@ -7,9 +7,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 interface EventsListProps {
   events: Event[];
   isLoading: boolean;
+  onEventUpdate?: () => void;
 }
 
-export const EventsList: React.FC<EventsListProps> = ({ events, isLoading }) => {
+export const EventsList: React.FC<EventsListProps> = ({ events, isLoading, onEventUpdate }) => {
   if (isLoading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -46,7 +47,7 @@ export const EventsList: React.FC<EventsListProps> = ({ events, isLoading }) => 
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {events.map((event) => (
         <div key={event.id} className="h-full">
-          <EventCard event={event} />
+          <EventCard event={event} onEventUpdate={onEventUpdate} />
         </div>
       ))}
     </div>

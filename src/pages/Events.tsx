@@ -20,21 +20,21 @@ const Events = () => {
   });
 
   useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        setIsLoading(true);
-        const fetchedEvents = await getAllEvents();
-        setEvents(fetchedEvents);
-        setFilteredEvents(fetchedEvents);
-      } catch (error) {
-        console.error('Error fetching events:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchEvents();
   }, []);
+
+  const fetchEvents = async () => {
+    try {
+      setIsLoading(true);
+      const fetchedEvents = await getAllEvents();
+      setEvents(fetchedEvents);
+      setFilteredEvents(fetchedEvents);
+    } catch (error) {
+      console.error('Error fetching events:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSearch = async (criteria: typeof searchCriteria) => {
     setIsLoading(true);
@@ -48,6 +48,11 @@ const Events = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleEventUpdate = () => {
+    // Refresh events when an RSVP is made
+    fetchEvents();
   };
 
   return (
@@ -78,7 +83,11 @@ const Events = () => {
             </p>
           </div>
           
-          <EventsList events={filteredEvents} isLoading={isLoading} />
+          <EventsList 
+            events={filteredEvents} 
+            isLoading={isLoading}
+            onEventUpdate={handleEventUpdate}
+          />
         </div>
       </main>
       

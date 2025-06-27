@@ -4,25 +4,19 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { Button } from '@/components/shared/Button';
-import { Calendar, MapPin, User, ArrowLeft } from 'lucide-react';
-import { getEventById, registerForEvent } from '@/lib/eventsApi';
+import { Calendar, MapPin, User, ArrowLeft, Users, Clock } from 'lucide-react';
+import { getEventById, updateEventRSVP } from '@/lib/eventsApi';
 import { Event } from '@/lib/eventsApi';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 import { ChatDrawer } from '@/components/chat/ChatDrawer';
 
-// Mock user session
-const mockUser = {
-  address: 'user123',
-  isConnected: true
-};
-
 const EventDetails = () => {
-  const { eventId } = useParams<{ eventId: string }>();
+  const { id: eventId } = useParams<{ id: string }>();
   const [event, setEvent] = useState<Event | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isRegistering, setIsRegistering] = useState(false);
-  const { address, isConnected } = mockUser;
+  const [isUpdatingRSVP, setIsUpdatingRSVP] = useState(false);
+  const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   
@@ -56,58 +50,97 @@ const EventDetails = () => {
     });
   };
 
-  const handleRegister = async () => {
-    if (!isConnected) {
+  const handleRSVP = async (status: 'attending' | 'maybe' | 'not_attending') => {
+    if (!user) {
       toast({
         title: "Please sign in",
-        description: "Please sign in to register for this event.",
+        description: "Please sign in to RSVP for this event.",
         variant: "destructive"
       });
       return;
     }
     
-    if (!eventId || !address) return;
+    if (!eventId) return;
     
     try {
-      setIsRegistering(true);
-      console.log("Attempting to register user:", address, "for event:", eventId);
-      const success = await registerForEvent(eventId, address);
+      setIsUpdatingRSVP(true);
+      await updateEventRSVP(eventId, status);
       
-      if (success) {
-        toast({
-          title: "Registration Successful!",
-          description: "You've successfully registered for this event.",
-        });
-        
-        // Refresh event data
-        const updatedEvent = await getEventById(eventId);
-        setEvent(updatedEvent);
-        
-        // Redirect to dashboard
-        setTimeout(() => {
-          navigate('/dashboard');
-        }, 1500);
-      } else {
-        toast({
-          title: "Already Registered",
-          description: "You are already registered for this event.",
-        });
-      }
-    } catch (error) {
-      console.error("Error registering for event:", error);
+      const statusText = status === 'attending' ? 'attending' : 
+                        status === 'maybe' ? 'maybe attending' : 'not attending';
+      
       toast({
-        title: "Registration Failed",
-        description: "There was an error registering for this event. Please try again later.",
+        title: "RSVP Updated!",
+        description: `You are now marked as ${statusText} for this event.`,
+      });
+      
+      // Refresh event data
+      const updatedEvent = await getEventById(eventId);
+      setEvent(updatedEvent);
+      
+    } catch (error) {
+      console.error("Error updating RSVP:", error);
+      toast({
+        title: "RSVP Failed",
+        description: "There was an error updating your RSVP. Please try again.",
         variant: "destructive"
       });
     } finally {
-      setIsRegistering(false);
+      setIsUpdatingRSVP(false);
     }
   };
 
-  const isUserRegistered = () => {
-    if (!event || !address) return false;
-    return event.attendees?.includes(address) || false;
+  const getRSVPButtons = () => {
+    if (!user) {
+      return (
+        <Button 
+          variant="primary" 
+          size="lg" 
+          onClick={() => {
+            toast({
+              title: "Please sign in",
+              description: "Please sign in to RSVP for this event.",
+              variant: "destructive"
+            });
+          }}
+        >
+          Sign in to RSVP
+        </Button>
+      );
+    }
+
+    const currentStatus = event?.rsvpStatus;
+    
+    return (
+      <div className="flex flex-col sm:flex-row gap-3">
+        <Button
+          variant={currentStatus === 'attending' ? 'primary' : 'outline'}
+          size="lg"
+          onClick={() => handleRSVP('attending')}
+          disabled={isUpdatingRSVP}
+        >
+          {isUpdatingRSVP && currentStatus !== 'attending' ? 'Updating...' : 'Going'}
+        </Button>
+        
+        <Button
+          variant={currentStatus === 'maybe' ? 'secondary' : 'outline'}
+          size="lg"
+          onClick={() => handleRSVP('maybe')}
+          disabled={isUpdatingRSVP}
+        >
+          {isUpdatingRSVP && currentStatus !== 'maybe' ? 'Updating...' : 'Maybe'}
+        </Button>
+        
+        <Button
+          variant={currentStatus === 'not_attending' ? 'secondary' : 'outline'}
+          size="lg"
+          onClick={() => handleRSVP('not_attending')}
+          disabled={isUpdatingRSVP}
+        >
+          {isUpdatingRSVP && currentStatus !== 'not_attending' ? 'Updating...' : 'Not Going'}
+        </Button>
+      </div>
+    );
   };
 
   if (isLoading) {
@@ -181,10 +214,19 @@ const EventDetails = () => {
                 <span>{event.location}</span>
               </div>
               
-              <div className="flex items-center">
-                <User className="h-5 w-5 text-brand-600 mr-2" />
-                <span>{event.organizerName}</span>
-              </div>
+              {event.organizerName && (
+                <div className="flex items-center">
+                  <User className="h-5 w-5 text-brand-600 mr-2" />
+                  <span>{event.organizerName}</span>
+                </div>
+              )}
+              
+              {event.rsvpCount !== undefined && (
+                <div className="flex items-center">
+                  <Users className="h-5 w-5 text-brand-600 mr-2" />
+                  <span>{event.rsvpCount} attending</span>
+                </div>
+              )}
             </div>
             
             <div className="p-6 bg-card border border-border rounded-lg mb-8">
@@ -193,36 +235,22 @@ const EventDetails = () => {
             </div>
             
             <div className="flex flex-col gap-4">
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 p-6 bg-muted rounded-lg">
-                <div>
-                  <div className="text-lg font-medium">
-                    {event.price ? `$${event.price}` : 'Free'}
+              <div className="flex flex-col gap-4 p-6 bg-muted rounded-lg">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div>
+                    <div className="text-lg font-medium">
+                      {event.price ? `$${event.price}` : 'Free'}
+                    </div>
+                    {event.rsvpStatus && (
+                      <div className="text-sm text-muted-foreground mt-1">
+                        You are {event.rsvpStatus === 'attending' ? 'going' : 
+                                 event.rsvpStatus === 'maybe' ? 'maybe going' : 'not going'} to this event
+                      </div>
+                    )}
                   </div>
+                  
+                  {getRSVPButtons()}
                 </div>
-                
-                {isUserRegistered() ? (
-                  <div className="flex flex-col sm:flex-row gap-4">
-                    <Button variant="secondary" size="lg" disabled>
-                      Already Registered
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="lg" 
-                      onClick={() => navigate('/dashboard')}
-                    >
-                      View in Dashboard
-                    </Button>
-                  </div>
-                ) : (
-                  <Button 
-                    variant="primary" 
-                    size="lg" 
-                    onClick={handleRegister}
-                    disabled={isRegistering || !isConnected}
-                  >
-                    {isRegistering ? 'Registering...' : 'Register for Event'}
-                  </Button>
-                )}
               </div>
               
               <div className="p-6 bg-brand-50 border border-brand-100 rounded-lg">
