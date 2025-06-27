@@ -4,18 +4,22 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { Button } from '@/components/shared/Button';
-import { Calendar, MapPin, User, ArrowLeft, Users, Clock } from 'lucide-react';
+import { Calendar, MapPin, User, ArrowLeft, Users, Clock, Car, MessageCircle, Phone, Star } from 'lucide-react';
 import { getEventById, updateEventRSVP } from '@/lib/eventsApi';
 import { Event } from '@/lib/eventsApi';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { ChatDrawer } from '@/components/chat/ChatDrawer';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 
 const EventDetails = () => {
   const { id: eventId } = useParams<{ id: string }>();
   const [event, setEvent] = useState<Event | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdatingRSVP, setIsUpdatingRSVP] = useState(false);
+  const [showCarpoolOptions, setShowCarpoolOptions] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -74,6 +78,11 @@ const EventDetails = () => {
         description: `You are now marked as ${statusText} for this event.`,
       });
       
+      // Show carpool options if user is attending
+      if (status === 'attending') {
+        setShowCarpoolOptions(true);
+      }
+      
       // Refresh event data
       const updatedEvent = await getEventById(eventId);
       setEvent(updatedEvent);
@@ -90,61 +99,56 @@ const EventDetails = () => {
     }
   };
 
-  const getRSVPButtons = () => {
-    if (!user) {
-      return (
-        <Button 
-          variant="primary" 
-          size="lg" 
-          onClick={() => {
-            toast({
-              title: "Please sign in",
-              description: "Please sign in to RSVP for this event.",
-              variant: "destructive"
-            });
-          }}
-        >
-          Sign in to RSVP
-        </Button>
-      );
+  const getCategoryColor = (category: string | null) => {
+    switch (category) {
+      case 'music':
+        return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
+      case 'entertainment':
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+      case 'food':
+        return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200';
+      case 'cultural':
+        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+      case 'film':
+        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+      default:
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
     }
-
-    const currentStatus = event?.rsvpStatus;
-    
-    return (
-      <div className="flex flex-col sm:flex-row gap-3">
-        <Button
-          variant={currentStatus === 'attending' ? 'primary' : 'outline'}
-          size="lg"
-          onClick={() => handleRSVP('attending')}
-          disabled={isUpdatingRSVP}
-        >
-          {isUpdatingRSVP && currentStatus !== 'attending' ? 'Updating...' : 'Going'}
-        </Button>
-        
-        <Button
-          variant={currentStatus === 'maybe' ? 'secondary' : 'outline'}
-          size="lg"
-          onClick={() => handleRSVP('maybe')}
-          disabled={isUpdatingRSVP}
-        >
-          {isUpdatingRSVP && currentStatus !== 'maybe' ? 'Updating...' : 'Maybe'}
-        </Button>
-        
-        <Button
-          variant={currentStatus === 'not_attending' ? 'secondary' : 'outline'}
-          size="lg"
-          onClick={() => handleRSVP('not_attending')}
-          disabled={isUpdatingRSVP}
-        >
-          {isUpdatingRSVP && currentStatus !== 'not_attending' ? 'Updating...' : 'Not Going'}
-        </Button>
-      </div>
-    );
   };
 
+  const mockCarpoolOptions = [
+    {
+      id: '1',
+      driverName: 'Sarah M.',
+      driverRating: 4.8,
+      departurePoint: 'Baga Beach Area',
+      departureTime: '16:30',
+      seatsAvailable: 2,
+      pricePerSeat: 200,
+      estimatedTime: '25 min'
+    },
+    {
+      id: '2',
+      driverName: 'Raj K.',
+      driverRating: 4.9,
+      departurePoint: 'Calangute Market',
+      departureTime: '17:00',
+      seatsAvailable: 3,
+      pricePerSeat: 150,
+      estimatedTime: '20 min'
+    }
+  ];
+
   if (isLoading) {
-    return null;
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <main className="flex-grow flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-600"></div>
+        </main>
+        <Footer />
+      </div>
+    );
   }
 
   if (!event) {
@@ -160,12 +164,12 @@ const EventDetails = () => {
                 </Button>
               </Link>
             </div>
-            <div className="p-8 border border-border rounded-lg bg-card text-center">
+            <Card className="p-8 text-center">
               <h2 className="text-2xl font-semibold mb-4">Event Not Found</h2>
               <p className="text-muted-foreground mb-6">
                 The event you're looking for doesn't exist or has been removed.
               </p>
-            </div>
+            </Card>
           </div>
         </main>
         <Footer />
@@ -174,93 +178,273 @@ const EventDetails = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
-      <main className="flex-grow container mx-auto px-4 py-12">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex items-center mb-8">
-            <Link to="/events">
-              <Button variant="outline" size="sm" iconLeft={<ArrowLeft className="h-4 w-4" />}>
-                Back to Events
-              </Button>
-            </Link>
-          </div>
-          
-          <div className="overflow-hidden rounded-xl mb-8">
-            {event.imageUrl ? (
-              <img 
-                src={event.imageUrl} 
-                alt={event.title} 
-                className="w-full h-64 object-cover"
-              />
-            ) : (
-              <div className="w-full h-64 bg-gradient-to-r from-brand-50 to-brand-100 flex items-center justify-center">
-                <Calendar className="h-20 w-20 text-brand-600 opacity-50" />
+      <main className="flex-grow">
+        {/* Hero Banner */}
+        <div className="relative h-96 overflow-hidden">
+          {event.imageUrl ? (
+            <img 
+              src={event.imageUrl} 
+              alt={event.title} 
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center">
+              <Calendar className="h-32 w-32 text-white opacity-50" />
+            </div>
+          )}
+          <div className="absolute inset-0 bg-black/40" />
+          <div className="absolute bottom-0 left-0 right-0 p-8 text-white">
+            <div className="container mx-auto max-w-6xl">
+              <div className="flex items-center mb-4">
+                <Link to="/events" className="mr-4">
+                  <Button variant="outline" size="sm" className="bg-white/10 backdrop-blur-sm border-white/30 text-white hover:bg-white/20">
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Back to Events
+                  </Button>
+                </Link>
+                {event.category && (
+                  <Badge className={`${getCategoryColor(event.category)} backdrop-blur-sm`}>
+                    {event.category}
+                  </Badge>
+                )}
               </div>
-            )}
-          </div>
-          
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold mb-4">{event.title}</h1>
-            
-            <div className="flex flex-col gap-4 md:flex-row md:gap-8 mt-6 mb-8">
-              <div className="flex items-center">
-                <Calendar className="h-5 w-5 text-brand-600 mr-2" />
-                <span>{formatDate(event.date)}</span>
-              </div>
-              
-              <div className="flex items-center">
-                <MapPin className="h-5 w-5 text-brand-600 mr-2" />
-                <span>{event.location}</span>
-              </div>
-              
-              {event.organizerName && (
+              <h1 className="text-4xl md:text-5xl font-bold mb-4">{event.title}</h1>
+              <div className="flex flex-wrap gap-6 text-lg">
                 <div className="flex items-center">
-                  <User className="h-5 w-5 text-brand-600 mr-2" />
-                  <span>{event.organizerName}</span>
+                  <Calendar className="h-5 w-5 mr-2" />
+                  <span>{formatDate(event.date)}</span>
                 </div>
-              )}
-              
-              {event.rsvpCount !== undefined && (
                 <div className="flex items-center">
-                  <Users className="h-5 w-5 text-brand-600 mr-2" />
-                  <span>{event.rsvpCount} attending</span>
+                  <MapPin className="h-5 w-5 mr-2" />
+                  <span>{event.location}</span>
                 </div>
+                {event.rsvpCount !== undefined && (
+                  <div className="flex items-center">
+                    <Users className="h-5 w-5 mr-2" />
+                    <span>{event.rsvpCount} attending</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="container mx-auto px-4 py-12 max-w-6xl">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Main Content */}
+            <div className="lg:col-span-2 space-y-8">
+              {/* Event Details */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Calendar className="h-6 w-6 mr-2 text-brand-600" />
+                    About This Event
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground whitespace-pre-line leading-relaxed">
+                    {event.description}
+                  </p>
+                  
+                  {event.organizerName && (
+                    <div className="mt-6 p-4 bg-muted rounded-lg">
+                      <div className="flex items-center">
+                        <User className="h-5 w-5 mr-2 text-brand-600" />
+                        <span className="font-medium">Organized by {event.organizerName}</span>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Carpool Options (shown when user RSVPs as attending) */}
+              {(showCarpoolOptions || event.rsvpStatus === 'attending') && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <Car className="h-6 w-6 mr-2 text-brand-600" />
+                      Available Carpools
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {mockCarpoolOptions.map((option) => (
+                      <div key={option.id} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-medium">{option.driverName}</span>
+                              <div className="flex items-center">
+                                <Star className="h-4 w-4 text-yellow-500 fill-current" />
+                                <span className="text-sm text-muted-foreground ml-1">{option.driverRating}</span>
+                              </div>
+                            </div>
+                            <div className="text-sm text-muted-foreground space-y-1">
+                              <div className="flex items-center">
+                                <MapPin className="h-4 w-4 mr-1" />
+                                From {option.departurePoint}
+                              </div>
+                              <div className="flex items-center">
+                                <Clock className="h-4 w-4 mr-1" />
+                                Departure at {option.departureTime} • {option.estimatedTime} to venue
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-semibold text-brand-600">₹{option.pricePerSeat}/seat</div>
+                            <div className="text-sm text-muted-foreground">{option.seatsAvailable} seats left</div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex gap-2">
+                          <Button size="sm" className="flex-1">
+                            Request Seat
+                          </Button>
+                          <Button variant="outline" size="sm">
+                            <MessageCircle className="h-4 w-4" />
+                          </Button>
+                          <Button variant="outline" size="sm">
+                            <Phone className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    <Separator />
+                    
+                    <div className="text-center">
+                      <Button variant="outline" className="w-full">
+                        <Car className="h-4 w-4 mr-2" />
+                        Offer a Ride Instead
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
               )}
             </div>
-            
-            <div className="p-6 bg-card border border-border rounded-lg mb-8">
-              <h2 className="text-xl font-semibold mb-3">About This Event</h2>
-              <p className="text-muted-foreground whitespace-pre-line">{event.description}</p>
-            </div>
-            
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-4 p-6 bg-muted rounded-lg">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div>
-                    <div className="text-lg font-medium">
-                      {event.price ? `$${event.price}` : 'Free'}
+
+            {/* Sidebar */}
+            <div className="space-y-6">
+              {/* RSVP Card */}
+              <Card>
+                <CardContent className="p-6">
+                  <div className="mb-6">
+                    <div className="text-2xl font-bold text-brand-600 mb-1">
+                      {event.price ? `₹${event.price}` : 'Free Event'}
                     </div>
                     {event.rsvpStatus && (
-                      <div className="text-sm text-muted-foreground mt-1">
+                      <div className="text-sm text-muted-foreground">
                         You are {event.rsvpStatus === 'attending' ? 'going' : 
-                                 event.rsvpStatus === 'maybe' ? 'maybe going' : 'not going'} to this event
+                                 event.rsvpStatus === 'maybe' ? 'interested' : 'not going'} 
                       </div>
                     )}
                   </div>
                   
-                  {getRSVPButtons()}
-                </div>
-              </div>
-              
-              <div className="p-6 bg-brand-50 border border-brand-100 rounded-lg">
-                <h3 className="text-lg font-semibold mb-3 text-brand-800">Carpooling Options</h3>
-                <p className="text-sm text-brand-700 mb-4">
-                  Save money and reduce your carbon footprint by sharing rides with others attending this event.
-                </p>
-                
-                <ChatDrawer eventId={event.id} eventTitle={event.title} />
-              </div>
+                  {user ? (
+                    <div className="space-y-3">
+                      <Button
+                        variant={event.rsvpStatus === 'attending' ? 'primary' : 'outline'}
+                        size="lg"
+                        className="w-full"
+                        onClick={() => handleRSVP('attending')}
+                        disabled={isUpdatingRSVP}
+                      >
+                        {isUpdatingRSVP && event.rsvpStatus !== 'attending' ? 'Updating...' : 'Going'}
+                      </Button>
+                      
+                      <Button
+                        variant={event.rsvpStatus === 'maybe' ? 'secondary' : 'outline'}
+                        size="lg"
+                        className="w-full"
+                        onClick={() => handleRSVP('maybe')}
+                        disabled={isUpdatingRSVP}
+                      >
+                        {isUpdatingRSVP && event.rsvpStatus !== 'maybe' ? 'Updating...' : 'Interested'}
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button 
+                      variant="primary" 
+                      size="lg" 
+                      className="w-full"
+                      onClick={() => {
+                        toast({
+                          title: "Please sign in",
+                          description: "Please sign in to RSVP for this event.",
+                          variant: "destructive"
+                        });
+                      }}
+                    >
+                      Sign in to RSVP
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Event Info Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Event Information</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-start gap-3">
+                    <Calendar className="h-5 w-5 text-brand-600 mt-0.5" />
+                    <div>
+                      <div className="font-medium">Date & Time</div>
+                      <div className="text-sm text-muted-foreground">{formatDate(event.date)}</div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start gap-3">
+                    <MapPin className="h-5 w-5 text-brand-600 mt-0.5" />
+                    <div>
+                      <div className="font-medium">Location</div>
+                      <div className="text-sm text-muted-foreground">{event.location}</div>
+                    </div>
+                  </div>
+                  
+                  {event.rsvpCount !== undefined && (
+                    <div className="flex items-start gap-3">
+                      <Users className="h-5 w-5 text-brand-600 mt-0.5" />
+                      <div>
+                        <div className="font-medium">Attendees</div>
+                        <div className="text-sm text-muted-foreground">{event.rsvpCount} people going</div>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Mini Map Placeholder */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Venue Location</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="w-full h-48 bg-muted rounded-lg flex items-center justify-center mb-4">
+                    <div className="text-center">
+                      <MapPin className="h-8 w-8 text-brand-600 mx-auto mb-2" />
+                      <p className="text-sm text-muted-foreground">Interactive map coming soon</p>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" className="w-full">
+                    Get Directions
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Chat/Discussion */}
+              {event.rsvpStatus === 'attending' && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Event Discussion</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ChatDrawer eventId={event.id} eventTitle={event.title} />
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </div>
         </div>

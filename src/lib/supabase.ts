@@ -231,7 +231,11 @@ export const getEventRSVPs = async (eventId: string): Promise<SupabaseEventRSVP[
     throw error;
   }
 
-  return data || [];
+  // Type assertion to ensure proper typing
+  return (data || []).map(rsvp => ({
+    ...rsvp,
+    status: rsvp.status as 'attending' | 'maybe' | 'not_attending'
+  }));
 };
 
 export const createEventRSVP = async (eventId: string, status: 'attending' | 'maybe' | 'not_attending'): Promise<boolean> => {

@@ -87,7 +87,7 @@ export const getAllEvents = async (): Promise<Event[]> => {
 
     // Get current user's RSVPs
     const { data: { user } } = await supabase.auth.getUser();
-    let userRSVPs: EventRSVP[] = [];
+    let userRSVPs: any[] = [];
     
     if (user) {
       const { data: rsvps, error: rsvpError } = await supabase
@@ -115,7 +115,7 @@ export const getAllEvents = async (): Promise<Event[]> => {
       const userRSVP = userRSVPs.find(rsvp => rsvp.event_id === event.id);
       return normalizeEvent({
         ...event,
-        rsvpStatus: userRSVP?.status || null,
+        rsvpStatus: userRSVP?.status as 'attending' | 'maybe' | 'not_attending' | null || null,
         rsvpCount: eventRSVPCounts[event.id] || 0
       });
     }) || [];
@@ -144,7 +144,7 @@ export const getEventById = async (eventId: string): Promise<Event | null> => {
 
     // Get current user's RSVP
     const { data: { user } } = await supabase.auth.getUser();
-    let userRSVP: EventRSVP | null = null;
+    let userRSVP: any = null;
     
     if (user) {
       const { data: rsvp, error: rsvpError } = await supabase
@@ -168,7 +168,7 @@ export const getEventById = async (eventId: string): Promise<Event | null> => {
 
     const normalizedEvent = normalizeEvent({
       ...event,
-      rsvpStatus: userRSVP?.status || null,
+      rsvpStatus: userRSVP?.status as 'attending' | 'maybe' | 'not_attending' | null || null,
       rsvpCount: rsvpCount?.length || 0
     });
 
