@@ -10,6 +10,7 @@ import { getUserRides, getUserBookings, SupabaseRide, SupabaseBooking } from '@/
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { ProfileStatsCard } from '@/components/dashboard/ProfileStatsCard';
+import { CarpoolingBenefitsBanner } from '@/components/rides/CarpoolingBenefitsBanner';
 
 const Dashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -18,7 +19,7 @@ const Dashboard = () => {
   const [offeredRides, setOfferedRides] = useState<SupabaseRide[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  
+
   useEffect(() => {
     if (user) {
       loadUserData();
@@ -26,19 +27,19 @@ const Dashboard = () => {
       setLoading(false);
     }
   }, [user, authLoading]);
-  
+
   const loadUserData = async () => {
     setLoading(true);
-    
+
     try {
       // Get user's bookings
       const userBookings = await getUserBookings();
       setMyBookings(userBookings);
-      
+
       // Get user's offered rides
       const userRides = await getUserRides();
       setOfferedRides(userRides);
-      
+
     } catch (error) {
       console.error("Error loading user data:", error);
       toast({
@@ -50,21 +51,21 @@ const Dashboard = () => {
       setLoading(false);
     }
   };
-  
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      weekday: 'short', 
-      month: 'short', 
-      day: 'numeric' 
+    return date.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric'
     });
   };
-  
+
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
 
@@ -76,7 +77,7 @@ const Dashboard = () => {
     const co2Saved = Math.round((totalRidesGiven + totalRidesTaken) * 50 * 0.12);
     const rating = 4.2; // This would come from actual reviews
     const totalReviews = Math.floor((totalRidesGiven + totalRidesTaken) * 0.7);
-    
+
     return { totalRidesGiven, totalRidesTaken, co2Saved, rating, totalReviews };
   };
 
@@ -96,19 +97,20 @@ const Dashboard = () => {
       </div>
     );
   }
-  
+
   // Redirect to home if not authenticated
   if (!user) {
     return <Navigate to="/" replace />;
   }
 
   const stats = calculateStats();
-  
+
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
       <main className="flex-grow pt-24 pb-16">
         <div className="container mx-auto px-4">
+          <CarpoolingBenefitsBanner />
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
             <div>
               <h1 className="text-3xl font-bold">Dashboard</h1>
@@ -116,8 +118,8 @@ const Dashboard = () => {
             </div>
             <div className="space-x-4 mt-4 md:mt-0">
               <Link to="/rides">
-                <Button 
-                  variant="primary" 
+                <Button
+                  variant="primary"
                   iconLeft={<Car className="h-4 w-4" />}
                 >
                   Offer a New Ride
@@ -145,7 +147,7 @@ const Dashboard = () => {
                   </div>
                 </div>
               </Card>
-              
+
               <Card className="p-6 bg-blue-50 border-blue-100">
                 <div className="flex items-center">
                   <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center mr-4">
@@ -157,7 +159,7 @@ const Dashboard = () => {
                   </div>
                 </div>
               </Card>
-              
+
               <Card className="p-6 bg-brand-50 border-brand-100">
                 <div className="flex items-center">
                   <div className="h-12 w-12 rounded-full bg-brand-100 flex items-center justify-center mr-4">
@@ -171,13 +173,13 @@ const Dashboard = () => {
               </Card>
             </div>
           </div>
-          
+
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-6">
               <TabsTrigger value="bookings">My Bookings ({myBookings.length})</TabsTrigger>
               <TabsTrigger value="offered">Offered Rides ({offeredRides.length})</TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="bookings">
               {loading ? (
                 <Card className="p-8">
@@ -214,7 +216,7 @@ const Dashboard = () => {
                 </div>
               )}
             </TabsContent>
-            
+
             <TabsContent value="offered">
               {loading ? (
                 <Card className="p-8">
@@ -243,7 +245,7 @@ const Dashboard = () => {
                           {ride.status}
                         </div>
                       </div>
-                      
+
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <div className="flex items-center">
@@ -255,7 +257,7 @@ const Dashboard = () => {
                             <span className="text-sm">To: {ride.destination}</span>
                           </div>
                         </div>
-                        
+
                         <div className="space-y-2">
                           <div className="flex items-center">
                             <Calendar className="h-4 w-4 text-brand-600 mr-2" />
@@ -267,7 +269,7 @@ const Dashboard = () => {
                           </div>
                         </div>
                       </div>
-                      
+
                       <div className="flex justify-between items-center mt-4 pt-4 border-t">
                         <div>
                           <span className="text-lg font-bold">${ride.price}</span>
