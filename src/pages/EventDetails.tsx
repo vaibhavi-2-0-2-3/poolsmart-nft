@@ -14,6 +14,7 @@ import { Separator } from '@/components/ui/separator';
 import { MessagingModal } from '@/components/messaging/MessagingModal';
 import { createRideRequest, getProfile } from '@/lib/supabase';
 import { PhoneNumberModal } from '@/components/rides/PhoneNumberModal';
+import { CreateRideModal } from '@/components/rides/CreateRideModal';
 import { useEventRides } from '@/hooks/useEventRides';
 
 const EventDetails = () => {
@@ -22,6 +23,7 @@ const EventDetails = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdatingRSVP, setIsUpdatingRSVP] = useState(false);
   const [showCarpoolOptions, setShowCarpoolOptions] = useState(false);
+  const [showCreateRideModal, setShowCreateRideModal] = useState(false);
   const [messagingModal, setMessagingModal] = useState<{isOpen: boolean, recipientId: string, recipientName: string} | null>(null);
   const [phoneModal, setPhoneModal] = useState<{isOpen: boolean, onSuccess: () => void} | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
@@ -150,29 +152,17 @@ const EventDetails = () => {
     }
 
     const checkPhoneAndProceed = () => {
-      if (!event) return;
-
-      // Navigate to rides page with event info pre-filled
-      navigate('/rides', {
-        state: {
-          eventId: event.id,
-          eventName: event.title,
-          destination: event.location,
-          date: event.date.split('T')[0],
-          time: event.date.split('T')[1]?.substring(0, 5) || '09:00'
-        }
-      });
+      if (!userProfile?.phone_number) {
+        setPhoneModal({
+          isOpen: true,
+          onSuccess: () => setShowCreateRideModal(true)
+        });
+      } else {
+        setShowCreateRideModal(true);
+      }
     };
 
-    // Check if user has phone number
-    if (!userProfile?.phone_number) {
-      setPhoneModal({
-        isOpen: true,
-        onSuccess: checkPhoneAndProceed
-      });
-    } else {
-      checkPhoneAndProceed();
-    }
+    checkPhoneAndProceed();
   };
 
   const handleRequestSeat = async (rideId: string, driverName: string) => {
@@ -586,6 +576,25 @@ const EventDetails = () => {
         </div>
       </main>
       <Footer />
+
+      {/* Create Ride Modal */}
+      {showCreateRideModal && (
+        <CreateRideModal
+          isOpen={showCreateRideModal}
+          onClose={() => setShowCreateRideModal(false)}
+          onRideCreated={() => {
+            refreshRides();
+            setShowCreateRideModal(false);
+          }}
+          eventId={eventId}
+          eventName={event.title}
+          prefilledData={{
+            destination: event.location,
+            date: event.date.split('T')[0],
+            time: event.date.split('T')[1]?.substring(0, 5) || '09:00'
+          }}
+        />
+      )}
 
       {/* Messaging Modal */}
       {messagingModal && (

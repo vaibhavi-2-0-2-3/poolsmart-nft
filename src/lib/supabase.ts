@@ -127,6 +127,7 @@ export const createRide = async (rideData: {
   price: number;
   driver_name: string;
   driver_email: string;
+  event_id?: string; // Add optional event_id parameter
 }): Promise<string> => {
   const {
     data: { user },
@@ -136,11 +137,13 @@ export const createRide = async (rideData: {
     throw new Error("User not authenticated");
   }
 
+  const { event_id, ...rideDataWithoutEventId } = rideData;
+
   const { data, error } = await supabase
     .from("rides")
     .insert([
       {
-        ...rideData,
+        ...rideDataWithoutEventId,
         user_id: user.id,
         status: "active",
       },
@@ -151,6 +154,23 @@ export const createRide = async (rideData: {
   if (error) {
     console.error("Error creating ride:", error);
     throw error;
+  }
+
+  // If event_id is provided, link the ride to the event
+  if (event_id) {
+    const { error: eventRideError } = await supabase
+      .from("event_rides")
+      .insert([
+        {
+          event_id: event_id,
+          ride_id: data.id,
+        },
+      ]);
+
+    if (eventRideError) {
+      console.error("Error linking ride to event:", eventRideError);
+      // Note: We don't throw here to avoid leaving orphaned rides, but log the error
+    }
   }
 
   return data.id;
