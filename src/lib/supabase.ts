@@ -81,6 +81,28 @@ export interface SupabaseEventRide {
   created_at: string;
 }
 
+export interface SupabaseRideRequest {
+  id: string;
+  ride_id: string;
+  user_id: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  message: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EventRideDetails {
+  ride_id: string;
+  driver_name: string;
+  driver_email: string;
+  driver_phone: string | null;
+  origin: string;
+  departure_time: string;
+  seats: number;
+  price: number;
+  available_seats: number;
+}
+
 // Rides API
 export const getRides = async (): Promise<SupabaseRide[]> => {
   const { data, error } = await supabase
@@ -301,6 +323,79 @@ export const getEventAttendees = async (eventId: string): Promise<string[]> => {
   return data?.map(rsvp => rsvp.user_id) || [];
 };
 
+// Ride Requests API
+export const createRideRequest = async (rideId: string, message?: string): Promise<boolean> => {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("User not authenticated");
+  }
+
+  const { error } = await supabase.from("ride_requests").insert([
+    {
+      ride_id: rideId,
+      user_id: user.id,
+      status: "pending",
+      message: message || null,
+    },
+  ]);
+
+  if (error) {
+    console.error("Error creating ride request:", error);
+    throw error;
+  }
+
+  return true;
+};
+
+export const getRideRequests = async (rideId: string): Promise<SupabaseRideRequest[]> => {
+  const { data, error } = await supabase
+    .from("ride_requests")
+    .select("*")
+    .eq("ride_id", rideId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching ride requests:", error);
+    throw error;
+  }
+
+  return data || [];
+};
+
+export const updateRideRequestStatus = async (
+  requestId: string,
+  status: 'accepted' | 'rejected'
+): Promise<boolean> => {
+  const { error } = await supabase
+    .from("ride_requests")
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq("id", requestId);
+
+  if (error) {
+    console.error("Error updating ride request status:", error);
+    throw error;
+  }
+
+  return true;
+};
+
+// Event Rides API
+export const getEventRides = async (eventId: string): Promise<EventRideDetails[]> => {
+  const { data, error } = await supabase.rpc('get_event_rides', {
+    event_uuid: eventId
+  });
+
+  if (error) {
+    console.error("Error fetching event rides:", error);
+    throw error;
+  }
+
+  return data || [];
+};
+
 // Profile API
 export const getProfile = async (): Promise<SupabaseProfile | null> => {
   const {
@@ -432,4 +527,26 @@ export const getPresenceChannel = (
       },
     },
   });
+};
+
+export const updateUserPhoneNumber = async (phoneNumber: string): Promise<boolean> => {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("User not authenticated");
+  }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ phone_number: phoneNumber, updated_at: new Date().toISOString() })
+    .eq("id", user.id);
+
+  if (error) {
+    console.error("Error updating phone number:", error);
+    throw error;
+  }
+
+  return true;
 };

@@ -222,6 +222,7 @@ export type Database = {
           luggage_size: string | null
           max_back_seat_passengers: boolean | null
           music: boolean | null
+          phone_number: string | null
           search_radius: string | null
           smoking: boolean | null
           updated_at: string
@@ -241,6 +242,7 @@ export type Database = {
           luggage_size?: string | null
           max_back_seat_passengers?: boolean | null
           music?: boolean | null
+          phone_number?: string | null
           search_radius?: string | null
           smoking?: boolean | null
           updated_at?: string
@@ -260,6 +262,7 @@ export type Database = {
           luggage_size?: string | null
           max_back_seat_passengers?: boolean | null
           music?: boolean | null
+          phone_number?: string | null
           search_radius?: string | null
           smoking?: boolean | null
           updated_at?: string
@@ -298,6 +301,44 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "reviews_ride_id_fkey"
+            columns: ["ride_id"]
+            isOneToOne: false
+            referencedRelation: "rides"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ride_requests: {
+        Row: {
+          created_at: string
+          id: string
+          message: string | null
+          ride_id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message?: string | null
+          ride_id: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string | null
+          ride_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ride_requests_ride_id_fkey"
             columns: ["ride_id"]
             isOneToOne: false
             referencedRelation: "rides"
@@ -352,7 +393,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_event_rides: {
+        Args: { event_uuid: string }
+        Returns: {
+          ride_id: string
+          driver_name: string
+          driver_email: string
+          driver_phone: string
+          origin: string
+          departure_time: string
+          seats: number
+          price: number
+          available_seats: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Navbar } from '@/components/layout/Navbar';
@@ -13,7 +12,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { MessagingModal } from '@/components/messaging/MessagingModal';
-import { createBooking } from '@/lib/supabase';
+import { createRideRequest, getProfile } from '@/lib/supabase';
+import { PhoneNumberModal } from '@/components/rides/PhoneNumberModal';
+import { useEventRides } from '@/hooks/useEventRides';
 
 const EventDetails = () => {
   const { id: eventId } = useParams<{ id: string }>();
@@ -22,9 +23,14 @@ const EventDetails = () => {
   const [isUpdatingRSVP, setIsUpdatingRSVP] = useState(false);
   const [showCarpoolOptions, setShowCarpoolOptions] = useState(false);
   const [messagingModal, setMessagingModal] = useState<{isOpen: boolean, recipientId: string, recipientName: string} | null>(null);
+  const [phoneModal, setPhoneModal] = useState<{isOpen: boolean, onSuccess: () => void} | null>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  
+  // Get real-time event rides
+  const { rides: eventRides, isLoading: ridesLoading, refreshRides } = useEventRides(eventId || null);
   
   useEffect(() => {
     const fetchEvent = async () => {
@@ -43,6 +49,21 @@ const EventDetails = () => {
     
     fetchEvent();
   }, [eventId]);
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (user) {
+        try {
+          const profile = await getProfile();
+          setUserProfile(profile);
+        } catch (error) {
+          console.error("Error fetching user profile:", error);
+        }
+      }
+    };
+    
+    fetchUserProfile();
+  }, [user]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -128,18 +149,30 @@ const EventDetails = () => {
       return;
     }
 
-    if (!event) return;
+    const checkPhoneAndProceed = () => {
+      if (!event) return;
 
-    // Navigate to rides page with event info pre-filled
-    navigate('/rides', {
-      state: {
-        eventId: event.id,
-        eventName: event.title,
-        destination: event.location,
-        date: event.date.split('T')[0],
-        time: event.date.split('T')[1]?.substring(0, 5) || '09:00'
-      }
-    });
+      // Navigate to rides page with event info pre-filled
+      navigate('/rides', {
+        state: {
+          eventId: event.id,
+          eventName: event.title,
+          destination: event.location,
+          date: event.date.split('T')[0],
+          time: event.date.split('T')[1]?.substring(0, 5) || '09:00'
+        }
+      });
+    };
+
+    // Check if user has phone number
+    if (!userProfile?.phone_number) {
+      setPhoneModal({
+        isOpen: true,
+        onSuccess: checkPhoneAndProceed
+      });
+    } else {
+      checkPhoneAndProceed();
+    }
   };
 
   const handleRequestSeat = async (rideId: string, driverName: string) => {
@@ -152,19 +185,32 @@ const EventDetails = () => {
       return;
     }
 
-    try {
-      await createBooking(rideId);
-      toast({
-        title: "Seat requested!",
-        description: `Your request has been sent to ${driverName}. They will be notified.`,
+    const proceedWithRequest = async () => {
+      try {
+        await createRideRequest(rideId);
+        toast({
+          title: "Seat requested!",
+          description: `Your request has been sent to ${driverName}. They will be notified.`,
+        });
+        refreshRides(); // Refresh the rides data
+      } catch (error) {
+        console.error('Error requesting seat:', error);
+        toast({
+          title: "Request failed",
+          description: "There was an error requesting the seat. Please try again.",
+          variant: "destructive"
+        });
+      }
+    };
+
+    // Check if user has phone number
+    if (!userProfile?.phone_number) {
+      setPhoneModal({
+        isOpen: true,
+        onSuccess: proceedWithRequest
       });
-    } catch (error) {
-      console.error('Error requesting seat:', error);
-      toast({
-        title: "Request failed",
-        description: "There was an error requesting the seat. Please try again.",
-        variant: "destructive"
-      });
+    } else {
+      await proceedWithRequest();
     }
   };
 
@@ -185,37 +231,29 @@ const EventDetails = () => {
     });
   };
 
-  const handleCallDriver = (driverName: string) => {
-    toast({
-      title: "Contact Driver",
-      description: `Please use the message feature to coordinate with ${driverName}. Phone calls will be available in a future update.`,
-    });
+  const handleCallDriver = (driverName: string, driverPhone: string | null) => {
+    if (driverPhone) {
+      // In a real app, this could open the phone dialer
+      toast({
+        title: "Contact Driver",
+        description: `Call ${driverName} at ${driverPhone}`,
+      });
+    } else {
+      toast({
+        title: "Contact Driver",
+        description: `Please use the message feature to coordinate with ${driverName}. Phone number not available.`,
+      });
+    }
   };
 
-  const mockCarpoolOptions = [
-    {
-      id: '1',
-      driverId: 'driver-1',
-      driverName: 'Sarah M.',
-      driverRating: 4.8,
-      departurePoint: 'Baga Beach Area',
-      departureTime: '16:30',
-      seatsAvailable: 2,
-      pricePerSeat: 200,
-      estimatedTime: '25 min'
-    },
-    {
-      id: '2',
-      driverId: 'driver-2',
-      driverName: 'Raj K.',
-      driverRating: 4.9,
-      departurePoint: 'Calangute Market',
-      departureTime: '17:00',
-      seatsAvailable: 3,
-      pricePerSeat: 150,
-      estimatedTime: '20 min'
-    }
-  ];
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: false 
+    });
+  };
 
   if (isLoading) {
     return (
@@ -337,7 +375,7 @@ const EventDetails = () => {
                 </CardContent>
               </Card>
 
-              {/* Carpool Options (shown when user RSVPs as attending) */}
+              {/* Real Carpool Options (shown when user RSVPs as attending) */}
               {(showCarpoolOptions || event.rsvpStatus === 'attending') && (
                 <Card>
                   <CardHeader>
@@ -347,59 +385,75 @@ const EventDetails = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {mockCarpoolOptions.map((option) => (
-                      <div key={option.id} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
-                        <div className="flex justify-between items-start mb-3">
-                          <div>
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="font-medium">{option.driverName}</span>
-                              <div className="flex items-center">
-                                <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                                <span className="text-sm text-muted-foreground ml-1">{option.driverRating}</span>
-                              </div>
-                            </div>
-                            <div className="text-sm text-muted-foreground space-y-1">
-                              <div className="flex items-center">
-                                <MapPin className="h-4 w-4 mr-1" />
-                                From {option.departurePoint}
-                              </div>
-                              <div className="flex items-center">
-                                <Clock className="h-4 w-4 mr-1" />
-                                Departure at {option.departureTime} • {option.estimatedTime} to venue
-                              </div>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="font-semibold text-brand-600">₹{option.pricePerSeat}/seat</div>
-                            <div className="text-sm text-muted-foreground">{option.seatsAvailable} seats left</div>
-                          </div>
-                        </div>
-                        
-                        <div className="flex gap-2">
-                          <Button 
-                            size="sm" 
-                            className="flex-1"
-                            onClick={() => handleRequestSeat(option.id, option.driverName)}
-                          >
-                            Request Seat
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleMessageDriver(option.driverId, option.driverName)}
-                          >
-                            <MessageCircle className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleCallDriver(option.driverName)}
-                          >
-                            <Phone className="h-4 w-4" />
-                          </Button>
-                        </div>
+                    {ridesLoading ? (
+                      <div className="text-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600 mx-auto"></div>
+                        <p className="text-muted-foreground mt-2">Loading available rides...</p>
                       </div>
-                    ))}
+                    ) : eventRides.length === 0 ? (
+                      <div className="text-center py-8">
+                        <Car className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                        <p className="text-muted-foreground">No rides available yet.</p>
+                        <p className="text-sm text-muted-foreground">Be the first to offer a ride!</p>
+                      </div>
+                    ) : (
+                      eventRides.map((ride) => (
+                        <div key={ride.ride_id} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
+                          <div className="flex justify-between items-start mb-3">
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-medium">{ride.driver_name}</span>
+                                <div className="flex items-center">
+                                  <Star className="h-4 w-4 text-yellow-500 fill-current" />
+                                  <span className="text-sm text-muted-foreground ml-1">4.8</span>
+                                </div>
+                              </div>
+                              <div className="text-sm text-muted-foreground space-y-1">
+                                <div className="flex items-center">
+                                  <MapPin className="h-4 w-4 mr-1" />
+                                  From {ride.origin}
+                                </div>
+                                <div className="flex items-center">
+                                  <Clock className="h-4 w-4 mr-1" />
+                                  Departure at {formatTime(ride.departure_time)}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-semibold text-brand-600">₹{ride.price}/seat</div>
+                              <div className="text-sm text-muted-foreground">
+                                {ride.available_seats} seats left
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="flex gap-2">
+                            <Button 
+                              size="sm" 
+                              className="flex-1"
+                              onClick={() => handleRequestSeat(ride.ride_id, ride.driver_name)}
+                              disabled={ride.available_seats <= 0}
+                            >
+                              {ride.available_seats <= 0 ? 'Full' : 'Request Seat'}
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleMessageDriver(ride.ride_id, ride.driver_name)}
+                            >
+                              <MessageCircle className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleCallDriver(ride.driver_name, ride.driver_phone)}
+                            >
+                              <Phone className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                    )}
                     
                     <Separator />
                     
@@ -542,6 +596,19 @@ const EventDetails = () => {
           recipientName={messagingModal.recipientName}
           currentUserId={user?.id || ''}
           currentUserName={user?.user_metadata?.full_name || user?.email || 'Anonymous'}
+        />
+      )}
+
+      {/* Phone Number Modal */}
+      {phoneModal && (
+        <PhoneNumberModal
+          isOpen={phoneModal.isOpen}
+          onClose={() => setPhoneModal(null)}
+          onSuccess={() => {
+            phoneModal.onSuccess();
+            setPhoneModal(null);
+          }}
+          currentPhoneNumber={userProfile?.phone_number}
         />
       )}
     </div>
