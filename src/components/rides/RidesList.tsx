@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Card } from '@/components/shared/Card';
@@ -6,6 +5,7 @@ import { Button } from '@/components/shared/Button';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, Calendar, Clock, Star, Users, ArrowRight, Verified, Leaf, Car } from 'lucide-react';
 import { getRides, createBooking, SupabaseRide, getProfile, getUserBookings } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { ProtectedAction } from '../auth/ProtectedAction';
