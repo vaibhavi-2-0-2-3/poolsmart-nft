@@ -181,8 +181,14 @@ const Rides = () => {
       <CreateRideModal
         isOpen={showCreateRideForm}
         onClose={() => setShowCreateRideForm(false)}
-        onSuccess={handleCreateRideSuccess}
-        eventData={eventData}
+        onRideCreated={handleCreateRideSuccess}
+        eventId={eventData?.eventId}
+        eventName={eventData?.eventName}
+        prefilledData={eventData ? {
+          destination: eventData.destination,
+          date: eventData.date,
+          time: eventData.time
+        } : undefined}
       />
     </div>
   );
