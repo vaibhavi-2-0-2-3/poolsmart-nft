@@ -362,7 +362,11 @@ export const getRideRequests = async (rideId: string): Promise<SupabaseRideReque
     throw error;
   }
 
-  return data || [];
+  // Type assertion to ensure proper typing
+  return (data || []).map(request => ({
+    ...request,
+    status: request.status as 'pending' | 'accepted' | 'rejected'
+  }));
 };
 
 export const updateRideRequestStatus = async (
