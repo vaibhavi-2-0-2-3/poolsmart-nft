@@ -1,186 +1,66 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { EnhancedRideCard } from './EnhancedRideCard';
 import { Card } from '@/components/shared/Card';
 import { Button } from '@/components/shared/Button';
-import { Badge } from '@/components/ui/badge';
-import { MapPin, Calendar, Clock, Star, Users, ArrowRight, Verified, Leaf, Car } from 'lucide-react';
-import { getRides, createBooking, SupabaseRide, getProfile, getUserBookings } from '@/lib/supabase';
+import { getRides, createBooking, SupabaseRide } from '@/lib/supabase';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { ProtectedAction } from '../auth/ProtectedAction';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { FilterState } from './EnhancedRidesFilter';
+import { useToast } from '@/hooks/use-toast';
+import { ProtectedAction } from '@/components/auth/ProtectedAction';
+import { Car, Filter } from 'lucide-react';
+
+interface FilterState {
+  priceRange: [number, number];
+  timeWindow: { start: string; end: string };
+  minSeats: number;
+  genderPreference: 'any' | 'male' | 'female';
+  languages: string[];
+  sortBy: 'date' | 'price' | 'seats';
+  sortOrder: 'asc' | 'desc';
+}
+
+interface SearchParams {
+  from: string;
+  to: string;
+  date: string;
+  time: string;
+  seats: string;
+}
 
 interface RidesListProps {
-  searchParams: {
-    from: string;
-    to: string;
-    date: string;
-    time: string;
-    seats: string;
-  };
+  searchParams: SearchParams;
   refreshTrigger: number;
-  filters?: FilterState;
+  filters: FilterState;
+  onMessage: (driverId: string, driverName: string) => void;
 }
 
-interface RideWithProfile extends SupabaseRide {
-  driver_profile?: {
-    username?: string;
-    avatar_url?: string;
-    full_name?: string;
-  };
-  is_event_linked?: boolean;
-  user_booked?: boolean;
-}
-
-const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger, filters }) => {
-  const [rides, setRides] = useState<RideWithProfile[]>([]);
+export default function RidesList({ searchParams, refreshTrigger, filters, onMessage }: RidesListProps) {
+  const [rides, setRides] = useState<SupabaseRide[]>([]);
   const [loading, setLoading] = useState(true);
-  const [bookingRide, setBookingRide] = useState<string | null>(null);
-  const [userBookings, setUserBookings] = useState<string[]>([]);
-  const { toast } = useToast();
+  const [bookedRides, setBookedRides] = useState<Set<string>>(new Set());
+  const [eventLinkedRides, setEventLinkedRides] = useState<Set<string>>(new Set());
   const { user } = useAuth();
+  const { toast } = useToast();
 
   useEffect(() => {
     loadRides();
-    if (user) {
-      loadUserBookings();
-    }
-  }, [refreshTrigger, searchParams, filters, user]);
-
-  const loadUserBookings = async () => {
-    try {
-      const bookings = await getUserBookings();
-      const rideIds = bookings.map(booking => booking.ride_id);
-      setUserBookings(rideIds);
-    } catch (error) {
-      console.error('Error loading user bookings:', error);
-    }
-  };
+  }, [refreshTrigger, searchParams]);
 
   const loadRides = async () => {
     try {
       setLoading(true);
-      const allRides = await getRides();
-
-      // Load driver profiles for each ride and check if it's event-linked
-      const ridesWithProfiles = await Promise.all(
-        allRides.map(async (ride) => {
-          try {
-            // Check if ride is linked to any event by looking for event_rides connection
-            const { data: eventRide } = await supabase
-              .from('event_rides')
-              .select('event_id')
-              .eq('ride_id', ride.id)
-              .single();
-
-            return {
-              ...ride,
-              driver_profile: {
-                username: ride.driver_name,
-                avatar_url: null,
-                full_name: ride.driver_name,
-              },
-              is_event_linked: !!eventRide,
-              user_booked: userBookings.includes(ride.id)
-            };
-          } catch (error) {
-            console.error('Error loading driver profile:', error);
-            return {
-              ...ride,
-              is_event_linked: false,
-              user_booked: userBookings.includes(ride.id)
-            };
-          }
-        })
-      );
-
-      // Apply search filters
-      let filteredRides = ridesWithProfiles;
-
-      if (searchParams.from) {
-        filteredRides = filteredRides.filter(ride =>
-          ride.origin.toLowerCase().includes(searchParams.from.toLowerCase())
-        );
-      }
-
-      if (searchParams.to) {
-        filteredRides = filteredRides.filter(ride =>
-          ride.destination.toLowerCase().includes(searchParams.to.toLowerCase())
-        );
-      }
-
-      if (searchParams.date) {
-        filteredRides = filteredRides.filter(ride => {
-          const rideDate = new Date(ride.date).toLocaleDateString();
-          const searchDate = new Date(searchParams.date).toLocaleDateString();
-          return rideDate === searchDate;
-        });
-      }
-
-      if (searchParams.seats && parseInt(searchParams.seats) > 0) {
-        filteredRides = filteredRides.filter(ride =>
-          ride.seats >= parseInt(searchParams.seats)
-        );
-      }
-
-      // Apply enhanced filters
-      if (filters) {
-        // Price range filter
-        if (filters.priceRange[0] > 0 || filters.priceRange[1] < 100) {
-          filteredRides = filteredRides.filter(ride =>
-            ride.price >= filters.priceRange[0] && ride.price <= filters.priceRange[1]
-          );
-        }
-
-        // Time window filter
-        if (filters.timeWindow.start || filters.timeWindow.end) {
-          filteredRides = filteredRides.filter(ride => {
-            const rideTime = new Date(ride.date).toTimeString().slice(0, 5);
-            const startTime = filters.timeWindow.start || '00:00';
-            const endTime = filters.timeWindow.end || '23:59';
-            return rideTime >= startTime && rideTime <= endTime;
-          });
-        }
-
-        // Minimum seats filter
-        if (filters.minSeats > 1) {
-          filteredRides = filteredRides.filter(ride => ride.seats >= filters.minSeats);
-        }
-
-        // Sort rides
-        filteredRides.sort((a, b) => {
-          let aValue, bValue;
-          switch (filters.sortBy) {
-            case 'price':
-              aValue = a.price;
-              bValue = b.price;
-              break;
-            case 'seats':
-              aValue = a.seats;
-              bValue = b.seats;
-              break;
-            case 'date':
-            default:
-              aValue = new Date(a.date).getTime();
-              bValue = new Date(b.date).getTime();
-              break;
-          }
-          
-          if (filters.sortOrder === 'desc') {
-            return bValue - aValue;
-          }
-          return aValue - bValue;
-        });
-      }
-
-      setRides(filteredRides);
+      const fetchedRides = await getRides();
+      
+      // Mock some rides as event-linked for demo
+      const eventLinked = new Set(fetchedRides.slice(0, 2).map(ride => ride.id));
+      setEventLinkedRides(eventLinked);
+      
+      setRides(fetchedRides);
     } catch (error) {
       console.error("Error loading rides:", error);
       toast({
-        title: "Error",
-        description: "Failed to load rides. Please try again.",
+        title: "Error loading rides",
+        description: "Please try again later.",
         variant: "destructive",
       });
     } finally {
@@ -188,10 +68,7 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger, fil
     }
   };
 
-  const handleBookRide = async (rideId: string, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-
+  const handleBook = async (rideId: string) => {
     if (!user) {
       toast({
         title: "Authentication required",
@@ -201,15 +78,13 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger, fil
       return;
     }
 
-    setBookingRide(rideId);
     try {
       await createBooking(rideId);
-      setUserBookings(prev => [...prev, rideId]);
+      setBookedRides(prev => new Set([...prev, rideId]));
       toast({
-        title: "Ride booked",
-        description: "Your ride has been successfully booked!",
+        title: "Ride booked successfully!",
+        description: "You will receive a confirmation email shortly.",
       });
-      loadRides();
     } catch (error) {
       console.error("Error booking ride:", error);
       toast({
@@ -217,64 +92,70 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger, fil
         description: "Unable to book this ride. Please try again.",
         variant: "destructive",
       });
-    } finally {
-      setBookingRide(null);
     }
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric'
+  const filterRides = (rides: SupabaseRide[]): SupabaseRide[] => {
+    return rides.filter(ride => {
+      if (searchParams.from && !ride.origin.toLowerCase().includes(searchParams.from.toLowerCase())) {
+        return false;
+      }
+      if (searchParams.to && !ride.destination.toLowerCase().includes(searchParams.to.toLowerCase())) {
+        return false;
+      }
+      if (ride.price < filters.priceRange[0] || ride.price > filters.priceRange[1]) {
+        return false;
+      }
+      if (ride.seats < filters.minSeats) {
+        return false;
+      }
+      return true;
     });
   };
 
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit'
+  const sortRides = (rides: SupabaseRide[]): SupabaseRide[] => {
+    return [...rides].sort((a, b) => {
+      let comparison = 0;
+      switch (filters.sortBy) {
+        case 'date':
+          comparison = new Date(a.date).getTime() - new Date(b.date).getTime();
+          break;
+        case 'price':
+          comparison = a.price - b.price;
+          break;
+        case 'seats':
+          comparison = a.seats - b.seats;
+          break;
+        default:
+          comparison = 0;
+      }
+      return filters.sortOrder === 'desc' ? -comparison : comparison;
     });
   };
 
-  const getDriverInitials = (ride: RideWithProfile) => {
-    const name = ride.driver_profile?.full_name || ride.driver_profile?.username || ride.driver_name || 'Driver';
-    const nameParts = name.split(' ');
-    if (nameParts.length > 1) {
-      return (nameParts[0].charAt(0) + nameParts[1].charAt(0)).toUpperCase();
-    }
-    return name.charAt(0).toUpperCase();
-  };
-
-  const getSeatsDisplay = (availableSeats: number) => {
-    return Array.from({ length: 8 }, (_, i) => (
-      <div
-        key={i}
-        className={`w-2 h-2 rounded-full ${
-          i < availableSeats ? 'bg-brand-500' : 'bg-gray-200'
-        }`}
-      />
-    ));
-  };
+  const filteredAndSortedRides = sortRides(filterRides(rides));
 
   if (loading) {
     return (
       <div className="space-y-6">
         {[...Array(3)].map((_, i) => (
-          <Card key={i} className="p-6 border-0 shadow-md">
-            <div className="animate-pulse">
-              <div className="flex items-center space-x-4 mb-4">
-                <div className="h-12 w-12 bg-gray-200 rounded-full"></div>
-                <div className="space-y-2 flex-1">
-                  <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+          <Card key={i} className="p-6 animate-pulse">
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-gray-200 rounded-full"></div>
+                <div className="flex-1">
+                  <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
                   <div className="h-3 bg-gray-200 rounded w-1/6"></div>
                 </div>
+                <div className="h-6 bg-gray-200 rounded w-16"></div>
               </div>
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+              </div>
+              <div className="flex gap-2">
+                <div className="h-10 bg-gray-200 rounded flex-1"></div>
+                <div className="h-10 bg-gray-200 rounded w-24"></div>
               </div>
             </div>
           </Card>
@@ -283,17 +164,23 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger, fil
     );
   }
 
-  if (rides.length === 0) {
+  if (filteredAndSortedRides.length === 0) {
     return (
-      <Card className="p-12 text-center border-0 shadow-md">
+      <Card className="p-12 text-center border-0 shadow-lg bg-gradient-to-br from-white to-gray-50">
         <div className="space-y-4">
           <div className="p-4 bg-muted rounded-full w-16 h-16 mx-auto flex items-center justify-center">
-            <MapPin className="h-8 w-8 text-muted-foreground" />
+            <Car className="h-8 w-8 text-muted-foreground" />
           </div>
-          <h3 className="text-xl font-semibold text-gray-800">No rides found</h3>
+          <h2 className="text-2xl font-bold text-gray-800">No Rides Found</h2>
           <p className="text-muted-foreground max-w-md mx-auto">
-            We couldn't find any rides matching your criteria. Try adjusting your search or filters, or check back later for new rides.
+            We couldn't find any rides matching your criteria. Try adjusting your search or filters.
           </p>
+          <div className="flex gap-2 justify-center">
+            <Button variant="outline">
+              <Filter className="h-4 w-4 mr-2" />
+              Clear Filters
+            </Button>
+          </div>
         </div>
       </Card>
     );
@@ -301,173 +188,37 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger, fil
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold text-gray-800">
-          {rides.length} ride{rides.length !== 1 ? 's' : ''} available
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-gray-800">
+          Available Rides ({filteredAndSortedRides.length})
         </h2>
-        <Badge variant="secondary" className="text-sm">
-          Updated just now
-        </Badge>
       </div>
-
-      {rides.map((ride) => {
-        const isBooked = userBookings.includes(ride.id);
-        const isOwnRide = ride.user_id === user?.id;
-        
-        return (
-          <Card key={ride.id} className="overflow-hidden border-0 shadow-md hover:shadow-lg transition-all duration-300 group">
-            <Link
-              to={`/ride/${ride.id}`}
-              className="block"
-            >
-              <div className="p-6">
-                {/* Header with Driver Info and Price */}
-                <div className="flex justify-between items-start mb-6">
-                  <div className="flex items-center space-x-4">
-                    <Avatar className="h-14 w-14 border-2 border-brand-100">
-                      {ride.driver_profile?.avatar_url ? (
-                        <AvatarImage src={ride.driver_profile.avatar_url} alt="Driver" />
-                      ) : (
-                        <AvatarFallback className="bg-gradient-to-br from-brand-100 to-brand-200 text-brand-700 font-bold text-lg">
-                          {getDriverInitials(ride)}
-                        </AvatarFallback>
-                      )}
-                    </Avatar>
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-bold text-gray-800">
-                          {ride.driver_profile?.full_name || ride.driver_profile?.username || ride.driver_name || 'Anonymous Driver'}
-                        </h3>
-                        <Verified className="h-4 w-4 text-brand-600" />
-                        {ride.is_event_linked && (
-                          <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-700">
-                            Event-linked
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
-                        <span className="text-sm font-medium">4.8</span>
-                        <span className="text-xs text-muted-foreground">(24 reviews)</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-3xl font-bold text-brand-600">${ride.price}</div>
-                    <div className="text-sm text-muted-foreground">per person</div>
-                    <div className="flex items-center gap-1 text-xs text-green-600 mt-1">
-                      <Leaf className="h-3 w-3" />
-                      <span>CO₂ saved</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Route Information */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 bg-green-100 rounded-lg">
-                      <MapPin className="h-5 w-5 text-green-600" />
-                    </div>
-                    <div>
-                      <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Departure</div>
-                      <div className="font-semibold text-gray-800">{ride.origin}</div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 bg-red-100 rounded-lg">
-                      <MapPin className="h-5 w-5 text-red-600" />
-                    </div>
-                    <div>
-                      <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Destination</div>
-                      <div className="font-semibold text-gray-800">{ride.destination}</div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <Calendar className="h-5 w-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Date & Time</div>
-                      <div className="font-semibold text-gray-800">
-                        {formatDate(ride.date)}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        at {formatTime(ride.date)}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Seats Visualization */}
-                <div className="mb-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-700">Available Seats</span>
-                    <span className="text-sm text-brand-600 font-semibold">{ride.seats} seats</span>
-                  </div>
-                  <div className="flex gap-1">
-                    {getSeatsDisplay(ride.seats)}
-                  </div>
-                </div>
-
-                {/* Bottom Section with Actions */}
-                <div className="flex justify-between items-center pt-4 border-t border-gray-100">
-                  <div className="flex items-center gap-4">
-                    <Badge variant="outline" className="text-xs">
-                      Instant booking
-                    </Badge>
-                    {ride.is_event_linked && (
-                      <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
-                        <Car className="h-3 w-3 mr-1" />
-                        Event ride
-                      </Badge>
-                    )}
-                  </div>
-
-                  <div className="flex items-center space-x-3">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="group-hover:border-brand-300 transition-colors"
-                    >
-                      View Details
-                      <ArrowRight className="h-4 w-4 ml-1 group-hover:translate-x-0.5 transition-transform" />
-                    </Button>
-
-                    <ProtectedAction
-                      requireAuth={true}
-                      fallback={
-                        <Button variant="primary" size="sm" disabled>
-                          Sign in to Book
-                        </Button>
-                      }
-                    >
-                      <Button
-                        variant={isBooked ? "secondary" : "primary"}
-                        size="sm"
-                        onClick={(e) => !isBooked && !isOwnRide && handleBookRide(ride.id, e)}
-                        disabled={bookingRide === ride.id || ride.seats === 0 || isOwnRide || isBooked}
-                        className={isBooked 
-                          ? "bg-green-100 text-green-700 hover:bg-green-100 cursor-default" 
-                          : "bg-gradient-to-r from-brand-600 to-brand-700 hover:from-brand-700 hover:to-brand-800 font-semibold px-6"
-                        }
-                      >
-                        {bookingRide === ride.id ? 'Booking...' :
-                          isBooked ? 'Booked ✓' :
-                          ride.seats === 0 ? 'Full' :
-                          isOwnRide ? 'Your Ride' : 'Book Now'}
-                      </Button>
-                    </ProtectedAction>
-                  </div>
-                </div>
-              </div>
-            </Link>
-          </Card>
-        );
-      })}
+      
+      <div className="grid gap-6">
+        {filteredAndSortedRides.map((ride) => (
+          <ProtectedAction
+            key={ride.id}
+            requireAuth={false}
+            fallback={
+              <EnhancedRideCard
+                ride={ride}
+                onBook={handleBook}
+                onMessage={onMessage}
+                isBooked={bookedRides.has(ride.id)}
+                isEventLinked={eventLinkedRides.has(ride.id)}
+              />
+            }
+          >
+            <EnhancedRideCard
+              ride={ride}
+              onBook={handleBook}
+              onMessage={onMessage}
+              isBooked={bookedRides.has(ride.id)}
+              isEventLinked={eventLinkedRides.has(ride.id)}
+            />
+          </ProtectedAction>
+        ))}
+      </div>
     </div>
   );
-};
-
-export default RidesList;
+}
