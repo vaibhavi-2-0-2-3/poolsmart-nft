@@ -4,8 +4,8 @@ import { Link } from 'react-router-dom';
 import { Card } from '@/components/shared/Card';
 import { Button } from '@/components/shared/Button';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Calendar, Clock, Star, Users, ArrowRight, Verified } from 'lucide-react';
-import { getRides, createBooking, SupabaseRide, getProfile } from '@/lib/supabase';
+import { MapPin, Calendar, Clock, Star, Users, ArrowRight, Verified, Leaf, Car } from 'lucide-react';
+import { getRides, createBooking, SupabaseRide, getProfile, getUserBookings } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { ProtectedAction } from '../auth/ProtectedAction';
@@ -28,39 +28,70 @@ interface RideWithProfile extends SupabaseRide {
   driver_profile?: {
     username?: string;
     avatar_url?: string;
+    full_name?: string;
   };
+  is_event_linked?: boolean;
+  user_booked?: boolean;
 }
 
 const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger, filters }) => {
   const [rides, setRides] = useState<RideWithProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [bookingRide, setBookingRide] = useState<string | null>(null);
+  const [userBookings, setUserBookings] = useState<string[]>([]);
   const { toast } = useToast();
   const { user } = useAuth();
 
   useEffect(() => {
     loadRides();
-  }, [refreshTrigger, searchParams, filters]);
+    if (user) {
+      loadUserBookings();
+    }
+  }, [refreshTrigger, searchParams, filters, user]);
+
+  const loadUserBookings = async () => {
+    try {
+      const bookings = await getUserBookings();
+      const rideIds = bookings.map(booking => booking.ride_id);
+      setUserBookings(rideIds);
+    } catch (error) {
+      console.error('Error loading user bookings:', error);
+    }
+  };
 
   const loadRides = async () => {
     try {
       setLoading(true);
       const allRides = await getRides();
 
-      // Load driver profiles for each ride
+      // Load driver profiles for each ride and check if it's event-linked
       const ridesWithProfiles = await Promise.all(
         allRides.map(async (ride) => {
           try {
+            // Check if ride is linked to any event by looking for event_rides connection
+            const { data: eventRide } = await supabase
+              .from('event_rides')
+              .select('event_id')
+              .eq('ride_id', ride.id)
+              .single();
+
             return {
               ...ride,
               driver_profile: {
                 username: ride.driver_name,
                 avatar_url: null,
-              }
+                full_name: ride.driver_name,
+              },
+              is_event_linked: !!eventRide,
+              user_booked: userBookings.includes(ride.id)
             };
           } catch (error) {
             console.error('Error loading driver profile:', error);
-            return ride;
+            return {
+              ...ride,
+              is_event_linked: false,
+              user_booked: userBookings.includes(ride.id)
+            };
           }
         })
       );
@@ -173,6 +204,7 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger, fil
     setBookingRide(rideId);
     try {
       await createBooking(rideId);
+      setUserBookings(prev => [...prev, rideId]);
       toast({
         title: "Ride booked",
         description: "Your ride has been successfully booked!",
@@ -208,8 +240,23 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger, fil
   };
 
   const getDriverInitials = (ride: RideWithProfile) => {
-    const name = ride.driver_profile?.username || ride.driver_name || 'D';
+    const name = ride.driver_profile?.full_name || ride.driver_profile?.username || ride.driver_name || 'Driver';
+    const nameParts = name.split(' ');
+    if (nameParts.length > 1) {
+      return (nameParts[0].charAt(0) + nameParts[1].charAt(0)).toUpperCase();
+    }
     return name.charAt(0).toUpperCase();
+  };
+
+  const getSeatsDisplay = (availableSeats: number) => {
+    return Array.from({ length: 8 }, (_, i) => (
+      <div
+        key={i}
+        className={`w-2 h-2 rounded-full ${
+          i < availableSeats ? 'bg-brand-500' : 'bg-gray-200'
+        }`}
+      />
+    ));
   };
 
   if (loading) {
@@ -263,133 +310,162 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger, fil
         </Badge>
       </div>
 
-      {rides.map((ride) => (
-        <Card key={ride.id} className="overflow-hidden border-0 shadow-md hover:shadow-lg transition-all duration-300 group">
-          <Link
-            to={`/ride/${ride.id}`}
-            className="block"
-          >
-            <div className="p-6">
-              {/* Header with Driver Info and Price */}
-              <div className="flex justify-between items-start mb-6">
-                <div className="flex items-center space-x-4">
-                  <Avatar className="h-14 w-14 border-2 border-brand-100">
-                    {ride.driver_profile?.avatar_url ? (
-                      <AvatarImage src={ride.driver_profile.avatar_url} alt="Driver" />
-                    ) : (
-                      <AvatarFallback className="bg-gradient-to-br from-brand-100 to-brand-200 text-brand-700 font-bold text-lg">
-                        {getDriverInitials(ride)}
-                      </AvatarFallback>
+      {rides.map((ride) => {
+        const isBooked = userBookings.includes(ride.id);
+        const isOwnRide = ride.user_id === user?.id;
+        
+        return (
+          <Card key={ride.id} className="overflow-hidden border-0 shadow-md hover:shadow-lg transition-all duration-300 group">
+            <Link
+              to={`/ride/${ride.id}`}
+              className="block"
+            >
+              <div className="p-6">
+                {/* Header with Driver Info and Price */}
+                <div className="flex justify-between items-start mb-6">
+                  <div className="flex items-center space-x-4">
+                    <Avatar className="h-14 w-14 border-2 border-brand-100">
+                      {ride.driver_profile?.avatar_url ? (
+                        <AvatarImage src={ride.driver_profile.avatar_url} alt="Driver" />
+                      ) : (
+                        <AvatarFallback className="bg-gradient-to-br from-brand-100 to-brand-200 text-brand-700 font-bold text-lg">
+                          {getDriverInitials(ride)}
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-bold text-gray-800">
+                          {ride.driver_profile?.full_name || ride.driver_profile?.username || ride.driver_name || 'Anonymous Driver'}
+                        </h3>
+                        <Verified className="h-4 w-4 text-brand-600" />
+                        {ride.is_event_linked && (
+                          <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-700">
+                            Event-linked
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
+                        <span className="text-sm font-medium">4.8</span>
+                        <span className="text-xs text-muted-foreground">(24 reviews)</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-3xl font-bold text-brand-600">${ride.price}</div>
+                    <div className="text-sm text-muted-foreground">per person</div>
+                    <div className="flex items-center gap-1 text-xs text-green-600 mt-1">
+                      <Leaf className="h-3 w-3" />
+                      <span>CO₂ saved</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Route Information */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-green-100 rounded-lg">
+                      <MapPin className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Departure</div>
+                      <div className="font-semibold text-gray-800">{ride.origin}</div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-red-100 rounded-lg">
+                      <MapPin className="h-5 w-5 text-red-600" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Destination</div>
+                      <div className="font-semibold text-gray-800">{ride.destination}</div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <Calendar className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Date & Time</div>
+                      <div className="font-semibold text-gray-800">
+                        {formatDate(ride.date)}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        at {formatTime(ride.date)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Seats Visualization */}
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-700">Available Seats</span>
+                    <span className="text-sm text-brand-600 font-semibold">{ride.seats} seats</span>
+                  </div>
+                  <div className="flex gap-1">
+                    {getSeatsDisplay(ride.seats)}
+                  </div>
+                </div>
+
+                {/* Bottom Section with Actions */}
+                <div className="flex justify-between items-center pt-4 border-t border-gray-100">
+                  <div className="flex items-center gap-4">
+                    <Badge variant="outline" className="text-xs">
+                      Instant booking
+                    </Badge>
+                    {ride.is_event_linked && (
+                      <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                        <Car className="h-3 w-3 mr-1" />
+                        Event ride
+                      </Badge>
                     )}
-                  </Avatar>
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-bold text-gray-800">
-                        {ride.driver_profile?.username || ride.driver_name || 'Anonymous Driver'}
-                      </h3>
-                      <Verified className="h-4 w-4 text-brand-600" />
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
-                      <span className="text-sm font-medium">4.8</span>
-                      <span className="text-xs text-muted-foreground">(24 reviews)</span>
-                    </div>
                   </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-3xl font-bold text-brand-600">${ride.price}</div>
-                  <div className="text-sm text-muted-foreground">per person</div>
-                </div>
-              </div>
 
-              {/* Route Information */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                <div className="flex items-start gap-3">
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <MapPin className="h-5 w-5 text-green-600" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Departure</div>
-                    <div className="font-semibold text-gray-800">{ride.origin}</div>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <div className="p-2 bg-red-100 rounded-lg">
-                    <MapPin className="h-5 w-5 text-red-600" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Destination</div>
-                    <div className="font-semibold text-gray-800">{ride.destination}</div>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <Calendar className="h-5 w-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Date & Time</div>
-                    <div className="font-semibold text-gray-800">
-                      {formatDate(ride.date)}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      at {formatTime(ride.date)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Bottom Section with Seats and Actions */}
-              <div className="flex justify-between items-center pt-4 border-t border-gray-100">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <Users className="h-5 w-5 text-brand-600" />
-                    <span className="font-medium">
-                      {ride.seats} {ride.seats === 1 ? 'seat' : 'seats'} available
-                    </span>
-                  </div>
-                  <Badge variant="outline" className="text-xs">
-                    Instant booking
-                  </Badge>
-                </div>
-
-                <div className="flex items-center space-x-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="group-hover:border-brand-300 transition-colors"
-                  >
-                    View Details
-                    <ArrowRight className="h-4 w-4 ml-1 group-hover:translate-x-0.5 transition-transform" />
-                  </Button>
-
-                  <ProtectedAction
-                    requireAuth={true}
-                    fallback={
-                      <Button variant="primary" size="sm" disabled>
-                        Sign in to Book
-                      </Button>
-                    }
-                  >
+                  <div className="flex items-center space-x-3">
                     <Button
-                      variant="primary"
+                      variant="outline"
                       size="sm"
-                      onClick={(e) => handleBookRide(ride.id, e)}
-                      disabled={bookingRide === ride.id || ride.seats === 0 || ride.user_id === user?.id}
-                      className="bg-gradient-to-r from-brand-600 to-brand-700 hover:from-brand-700 hover:to-brand-800 font-semibold px-6"
+                      className="group-hover:border-brand-300 transition-colors"
                     >
-                      {bookingRide === ride.id ? 'Booking...' :
-                        ride.seats === 0 ? 'Full' :
-                          ride.user_id === user?.id ? 'Your Ride' : 'Book Now'}
+                      View Details
+                      <ArrowRight className="h-4 w-4 ml-1 group-hover:translate-x-0.5 transition-transform" />
                     </Button>
-                  </ProtectedAction>
+
+                    <ProtectedAction
+                      requireAuth={true}
+                      fallback={
+                        <Button variant="primary" size="sm" disabled>
+                          Sign in to Book
+                        </Button>
+                      }
+                    >
+                      <Button
+                        variant={isBooked ? "secondary" : "primary"}
+                        size="sm"
+                        onClick={(e) => !isBooked && !isOwnRide && handleBookRide(ride.id, e)}
+                        disabled={bookingRide === ride.id || ride.seats === 0 || isOwnRide || isBooked}
+                        className={isBooked 
+                          ? "bg-green-100 text-green-700 hover:bg-green-100 cursor-default" 
+                          : "bg-gradient-to-r from-brand-600 to-brand-700 hover:from-brand-700 hover:to-brand-800 font-semibold px-6"
+                        }
+                      >
+                        {bookingRide === ride.id ? 'Booking...' :
+                          isBooked ? 'Booked ✓' :
+                          ride.seats === 0 ? 'Full' :
+                          isOwnRide ? 'Your Ride' : 'Book Now'}
+                      </Button>
+                    </ProtectedAction>
+                  </div>
                 </div>
               </div>
-            </div>
-          </Link>
-        </Card>
-      ))}
+            </Link>
+          </Card>
+        );
+      })}
     </div>
   );
 };

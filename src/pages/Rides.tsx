@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 import { Navbar } from '@/components/layout/Navbar';
 import RidesList from '@/components/rides/RidesList';
 import { EnhancedRidesFilter, FilterState } from '@/components/rides/EnhancedRidesFilter';
+import { CarpoolingBenefitsBanner } from '@/components/rides/CarpoolingBenefitsBanner';
 import { Car, CalendarClock, MapPin, Search, Plus } from 'lucide-react';
 import { Button } from '@/components/shared/Button';
 import { Card } from '@/components/shared/Card';
@@ -95,6 +96,9 @@ const Rides = () => {
               }
             </p>
           </div>
+
+          {/* Carpooling Benefits Banner */}
+          <CarpoolingBenefitsBanner />
 
           {/* Search Section */}
           <Card className="mb-8 p-6 shadow-lg border-0 bg-white/80 backdrop-blur-sm">

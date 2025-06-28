@@ -9,6 +9,7 @@ import { Calendar, Clock, MapPin, Users, Star, User, Car } from 'lucide-react';
 import { getUserRides, getUserBookings, SupabaseRide, SupabaseBooking } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { ProfileStatsCard } from '@/components/dashboard/ProfileStatsCard';
 
 const Dashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -67,6 +68,18 @@ const Dashboard = () => {
     });
   };
 
+  // Calculate user stats
+  const calculateStats = () => {
+    const totalRidesGiven = offeredRides.length;
+    const totalRidesTaken = myBookings.length;
+    // Estimate CO2 saved based on average ride distance (50km) and emission factor (0.12kg CO2/km per person)
+    const co2Saved = Math.round((totalRidesGiven + totalRidesTaken) * 50 * 0.12);
+    const rating = 4.2; // This would come from actual reviews
+    const totalReviews = Math.floor((totalRidesGiven + totalRidesTaken) * 0.7);
+    
+    return { totalRidesGiven, totalRidesTaken, co2Saved, rating, totalReviews };
+  };
+
   // Show loading while checking authentication
   if (authLoading) {
     return (
@@ -88,6 +101,8 @@ const Dashboard = () => {
   if (!user) {
     return <Navigate to="/" replace />;
   }
+
+  const stats = calculateStats();
   
   return (
     <div className="min-h-screen flex flex-col">
@@ -110,43 +125,51 @@ const Dashboard = () => {
               </Link>
             </div>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <Card className="p-6 bg-green-50 border-green-100">
-              <div className="flex items-center">
-                <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center mr-4">
-                  <Car className="h-6 w-6 text-green-600" />
+
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+            {/* Profile Stats Card */}
+            <div className="lg:col-span-1">
+              <ProfileStatsCard {...stats} />
+            </div>
+
+            {/* Quick Stats Grid */}
+            <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card className="p-6 bg-green-50 border-green-100">
+                <div className="flex items-center">
+                  <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center mr-4">
+                    <Car className="h-6 w-6 text-green-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground">My Bookings</h3>
+                    <p className="text-lg font-semibold">{myBookings.length}</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">My Bookings</h3>
-                  <p className="text-lg font-semibold">{myBookings.length}</p>
+              </Card>
+              
+              <Card className="p-6 bg-blue-50 border-blue-100">
+                <div className="flex items-center">
+                  <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center mr-4">
+                    <Users className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground">Offered Rides</h3>
+                    <p className="text-lg font-semibold">{offeredRides.length}</p>
+                  </div>
                 </div>
-              </div>
-            </Card>
-            
-            <Card className="p-6 bg-blue-50 border-blue-100">
-              <div className="flex items-center">
-                <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center mr-4">
-                  <Users className="h-6 w-6 text-blue-600" />
+              </Card>
+              
+              <Card className="p-6 bg-brand-50 border-brand-100">
+                <div className="flex items-center">
+                  <div className="h-12 w-12 rounded-full bg-brand-100 flex items-center justify-center mr-4">
+                    <User className="h-6 w-6 text-brand-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground">Profile</h3>
+                    <p className="text-lg font-semibold">Active</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Offered Rides</h3>
-                  <p className="text-lg font-semibold">{offeredRides.length}</p>
-                </div>
-              </div>
-            </Card>
-            
-            <Card className="p-6 bg-brand-50 border-brand-100">
-              <div className="flex items-center">
-                <div className="h-12 w-12 rounded-full bg-brand-100 flex items-center justify-center mr-4">
-                  <User className="h-6 w-6 text-brand-600" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Profile</h3>
-                  <p className="text-lg font-semibold">Active</p>
-                </div>
-              </div>
-            </Card>
+              </Card>
+            </div>
           </div>
           
           <Tabs value={activeTab} onValueChange={setActiveTab}>
