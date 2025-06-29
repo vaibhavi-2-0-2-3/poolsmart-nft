@@ -17,7 +17,7 @@ export interface FilterState {
   priceRange: [number, number];
   timeWindow: { start: string; end: string };
   minSeats: number;
-  genderPreference: string;
+  genderPreference: 'any' | 'male' | 'female';
   languages: string[];
   sortBy: string;
   sortOrder: 'asc' | 'desc';
@@ -169,7 +169,7 @@ export const EnhancedRidesFilter: React.FC<EnhancedRidesFilterProps> = ({ onFilt
             {/* Gender Preference */}
             <div className="space-y-3">
               <Label className="text-sm font-medium">Gender Preference</Label>
-              <Select value={filters.genderPreference} onValueChange={(value) => handleFilterChange('genderPreference', value)}>
+              <Select value={filters.genderPreference} onValueChange={(value: 'any' | 'male' | 'female') => handleFilterChange('genderPreference', value)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
