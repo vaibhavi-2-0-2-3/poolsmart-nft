@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card } from '@/components/shared/Card';
 import { Button } from '@/components/shared/Button';
@@ -19,7 +18,7 @@ export interface FilterState {
   minSeats: number;
   genderPreference: 'any' | 'male' | 'female';
   languages: string[];
-  sortBy: string;
+  sortBy: 'date' | 'price' | 'seats';
   sortOrder: 'asc' | 'desc';
 }
 
@@ -187,7 +186,7 @@ export const EnhancedRidesFilter: React.FC<EnhancedRidesFilterProps> = ({ onFilt
             <div className="space-y-3">
               <Label className="text-sm font-medium">Sort By</Label>
               <div className="grid grid-cols-2 gap-2">
-                <Select value={filters.sortBy} onValueChange={(value) => handleFilterChange('sortBy', value)}>
+                <Select value={filters.sortBy} onValueChange={(value: 'date' | 'price' | 'seats') => handleFilterChange('sortBy', value)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -197,7 +196,7 @@ export const EnhancedRidesFilter: React.FC<EnhancedRidesFilterProps> = ({ onFilt
                     <SelectItem value="seats">Available Seats</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select value={filters.sortOrder} onValueChange={(value) => handleFilterChange('sortOrder', value)}>
+                <Select value={filters.sortOrder} onValueChange={(value: 'asc' | 'desc') => handleFilterChange('sortOrder', value)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
