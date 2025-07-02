@@ -26,7 +26,7 @@ const Rides = () => {
   const location = useLocation();
   const eventData = location.state as any;
   const { user } = useAuth();
-  
+
   const [searchParams, setSearchParams] = useState<SearchParams>({
     from: '',
     to: eventData?.destination || '',
@@ -87,34 +87,36 @@ const Rides = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
       <Navbar />
-      <main className="pt-24 pb-16">
-        <div className="container mx-auto px-4">
-          {/* Animated Header Banner */}
-          <div className="mb-8">
-            <AnimatedBanner
-              title="Find Your Perfect Ride"
-              subtitle={eventData 
-                ? `Connect with fellow travelers heading to ${eventData.eventName}` 
-                : 'Discover comfortable, affordable rides or share your journey with others'
-              }
-              gradient="from-brand-500 via-brand-600 to-brand-700"
-            >
-              <div className="flex items-center justify-center gap-6 mt-6">
-                <div className="flex items-center gap-2 text-white/90">
-                  <Car className="h-5 w-5" />
-                  <span className="text-sm font-medium">47 Active Rides</span>
-                </div>
-                <div className="flex items-center gap-2 text-white/90">
-                  <MapPin className="h-5 w-5" />
-                  <span className="text-sm font-medium">15+ Destinations</span>
-                </div>
-                <div className="flex items-center gap-2 text-white/90">
-                  <CalendarClock className="h-5 w-5" />
-                  <span className="text-sm font-medium">Real-time Updates</span>
-                </div>
-              </div>
-            </AnimatedBanner>
+      <AnimatedBanner
+        title="Find Your Perfect Ride"
+        subtitle={eventData
+          ? `Connect with fellow travelers heading to ${eventData.eventName}`
+          : 'Discover comfortable, affordable rides or share your journey with others'
+        }
+        gradient="from-brand-500 via-brand-600 to-brand-700"
+      >
+        <div className="flex items-center justify-center gap-6 mt-6">
+          <div className="flex items-center gap-2 text-white/90">
+            <Car className="h-5 w-5" />
+            <span className="text-sm font-medium">47 Active Rides</span>
           </div>
+          <div className="flex items-center gap-2 text-white/90">
+            <MapPin className="h-5 w-5" />
+            <span className="text-sm font-medium">15+ Destinations</span>
+          </div>
+          <div className="flex items-center gap-2 text-white/90">
+            <CalendarClock className="h-5 w-5" />
+            <span className="text-sm font-medium">Real-time Updates</span>
+          </div>
+        </div>
+      </AnimatedBanner>
+      <main className="pb-16">
+
+
+        <div className="container pt-8 mx-auto px-4">
+          {/* Animated Header Banner */}
+          {/* <div className="mb-8">
+          </div> */}
 
           {/* Search Section */}
           <Card className="mb-8 p-6 shadow-lg border-0 bg-white/80 backdrop-blur-sm">
