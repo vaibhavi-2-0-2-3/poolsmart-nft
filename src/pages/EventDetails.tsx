@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Navbar } from '@/components/layout/Navbar';
@@ -27,29 +26,38 @@ const EventDetails = () => {
   const [messagingModal, setMessagingModal] = useState<{isOpen: boolean, recipientId: string, recipientName: string} | null>(null);
   const [phoneModal, setPhoneModal] = useState<{isOpen: boolean, onSuccess: () => void} | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [hasError, setHasError] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   
-  // Get real-time event rides - this will automatically fetch when eventId changes
-  const { rides: eventRides, isLoading: ridesLoading, refreshRides } = useEventRides(eventId || null);
+  // Get real-time event rides with error handling
+  const { rides: eventRides, isLoading: ridesLoading, error: ridesError, refreshRides } = useEventRides(eventId || null);
   
   useEffect(() => {
     const fetchEvent = async () => {
       try {
         setIsLoading(true);
+        setHasError(false);
         if (eventId) {
           const eventData = await getEventById(eventId);
-          setEvent(eventData);
+          if (eventData) {
+            setEvent(eventData);
+          } else {
+            setHasError(true);
+          }
         }
       } catch (error) {
         console.error("Error fetching event details:", error);
+        setHasError(true);
       } finally {
         setIsLoading(false);
       }
     };
     
-    fetchEvent();
+    if (eventId) {
+      fetchEvent();
+    }
   }, [eventId]);
 
   useEffect(() => {
@@ -60,6 +68,7 @@ const EventDetails = () => {
           setUserProfile(profile);
         } catch (error) {
           console.error("Error fetching user profile:", error);
+          // Don't break the component if profile fetch fails
         }
       }
     };
@@ -69,11 +78,11 @@ const EventDetails = () => {
 
   // Auto-refresh rides when user RSVP status changes to attending
   useEffect(() => {
-    if (event?.rsvpStatus === 'attending') {
+    if (event?.rsvpStatus === 'attending' && !ridesError) {
       console.log('User is attending event, refreshing rides...');
       refreshRides();
     }
-  }, [event?.rsvpStatus, refreshRides]);
+  }, [event?.rsvpStatus, refreshRides, ridesError]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -113,7 +122,9 @@ const EventDetails = () => {
       
       // Refresh event data to get updated RSVP status
       const updatedEvent = await getEventById(eventId);
-      setEvent(updatedEvent);
+      if (updatedEvent) {
+        setEvent(updatedEvent);
+      }
       
       // If user is now attending, immediately fetch and show available rides
       if (status === 'attending') {
@@ -261,20 +272,27 @@ const EventDetails = () => {
     });
   };
 
-  // Filter rides that match the event location (destination)
+  // Filter rides that match the event location (destination) with better error handling
   const getMatchingRides = () => {
-    if (!event || !eventRides) return eventRides;
+    if (!event || !eventRides || ridesError) return [];
     
-    // Filter rides where destination matches event location or is nearby
-    return eventRides.filter(ride => {
-      const eventLocation = event.location.toLowerCase();
-      const rideDestination = ride.origin.toLowerCase();
-      
-      // Check if ride destination contains event location or vice versa
-      return eventLocation.includes(rideDestination) || 
-             rideDestination.includes(eventLocation) ||
-             eventRides.includes(ride); // Include all event-linked rides
-    });
+    try {
+      // Filter rides where destination matches event location or is nearby
+      return eventRides.filter(ride => {
+        if (!ride?.origin || !event?.location) return false;
+        
+        const eventLocation = event.location.toLowerCase();
+        const rideDestination = ride.origin.toLowerCase();
+        
+        // Check if ride destination contains event location or vice versa
+        return eventLocation.includes(rideDestination) || 
+               rideDestination.includes(eventLocation) ||
+               eventRides.includes(ride); // Include all event-linked rides
+      });
+    } catch (error) {
+      console.error('Error filtering rides:', error);
+      return [];
+    }
   };
 
   const matchingRides = getMatchingRides();
@@ -291,7 +309,7 @@ const EventDetails = () => {
     );
   }
 
-  if (!event) {
+  if (hasError || !event) {
     return (
       <div className="min-h-screen flex flex-col">
         <Navbar />
@@ -331,6 +349,10 @@ const EventDetails = () => {
               src={event.imageUrl} 
               alt={event.title} 
               className="w-full h-full object-cover"
+              onError={(e) => {
+                // Handle broken images gracefully
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
             />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center">
@@ -429,12 +451,20 @@ const EventDetails = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    {ridesError && (
+                      <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                        <p className="text-sm text-yellow-700">
+                          ⚠️ Unable to load rides at the moment. Please try refreshing the page.
+                        </p>
+                      </div>
+                    )}
+                    
                     {ridesLoading ? (
                       <div className="text-center py-8">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600 mx-auto"></div>
                         <p className="text-muted-foreground mt-2">Loading available rides...</p>
                       </div>
-                    ) : matchingRides.length === 0 ? (
+                    ) : matchingRides.length === 0 && !ridesError ? (
                       <div className="text-center py-8">
                         <Car className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                         <p className="text-muted-foreground font-medium">No rides available yet for this event.</p>
@@ -447,7 +477,7 @@ const EventDetails = () => {
                           </p>
                         </div>
                       </div>
-                    ) : (
+                    ) : matchingRides.length > 0 ? (
                       <>
                         {/* Show helpful info about matching */}
                         <div className="mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
@@ -516,7 +546,7 @@ const EventDetails = () => {
                           </div>
                         ))}
                       </>
-                    )}
+                    ) : null}
                     
                     <Separator />
                     
