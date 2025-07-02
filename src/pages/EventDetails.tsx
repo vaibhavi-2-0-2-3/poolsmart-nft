@@ -22,34 +22,42 @@ const EventDetails = () => {
   const [event, setEvent] = useState<Event | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdatingRSVP, setIsUpdatingRSVP] = useState(false);
-  const [showCarpoolOptions, setShowCarpoolOptions] = useState(false);
   const [showCreateRideModal, setShowCreateRideModal] = useState(false);
   const [messagingModal, setMessagingModal] = useState<{isOpen: boolean, recipientId: string, recipientName: string} | null>(null);
   const [phoneModal, setPhoneModal] = useState<{isOpen: boolean, onSuccess: () => void} | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [hasError, setHasError] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   
-  // Get real-time event rides
-  const { rides: eventRides, isLoading: ridesLoading, refreshRides } = useEventRides(eventId || null);
+  // Get real-time event rides with error handling
+  const { rides: eventRides, isLoading: ridesLoading, error: ridesError, refreshRides } = useEventRides(eventId || null);
   
   useEffect(() => {
     const fetchEvent = async () => {
       try {
         setIsLoading(true);
+        setHasError(false);
         if (eventId) {
           const eventData = await getEventById(eventId);
-          setEvent(eventData);
+          if (eventData) {
+            setEvent(eventData);
+          } else {
+            setHasError(true);
+          }
         }
       } catch (error) {
         console.error("Error fetching event details:", error);
+        setHasError(true);
       } finally {
         setIsLoading(false);
       }
     };
     
-    fetchEvent();
+    if (eventId) {
+      fetchEvent();
+    }
   }, [eventId]);
 
   useEffect(() => {
@@ -60,12 +68,21 @@ const EventDetails = () => {
           setUserProfile(profile);
         } catch (error) {
           console.error("Error fetching user profile:", error);
+          // Don't break the component if profile fetch fails
         }
       }
     };
     
     fetchUserProfile();
   }, [user]);
+
+  // Auto-refresh rides when user RSVP status changes to attending
+  useEffect(() => {
+    if (event?.rsvpStatus === 'attending' && !ridesError) {
+      console.log('User is attending event, refreshing rides...');
+      refreshRides();
+    }
+  }, [event?.rsvpStatus, refreshRides, ridesError]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -103,14 +120,24 @@ const EventDetails = () => {
         description: `You are now marked as ${statusText} for this event.`,
       });
       
-      // Show carpool options if user is attending
-      if (status === 'attending') {
-        setShowCarpoolOptions(true);
+      // Refresh event data to get updated RSVP status
+      const updatedEvent = await getEventById(eventId);
+      if (updatedEvent) {
+        setEvent(updatedEvent);
       }
       
-      // Refresh event data
-      const updatedEvent = await getEventById(eventId);
-      setEvent(updatedEvent);
+      // If user is now attending, immediately fetch and show available rides
+      if (status === 'attending') {
+        console.log('User joined event, fetching available rides...');
+        toast({
+          title: "Welcome to the event!",
+          description: "Check out available carpool rides below.",
+        });
+        // Trigger immediate refresh of rides
+        setTimeout(() => {
+          refreshRides();
+        }, 500);
+      }
       
     } catch (error) {
       console.error("Error updating RSVP:", error);
@@ -245,6 +272,31 @@ const EventDetails = () => {
     });
   };
 
+  // Filter rides that match the event location (destination) with better error handling
+  const getMatchingRides = () => {
+    if (!event || !eventRides || ridesError) return [];
+    
+    try {
+      // Filter rides where destination matches event location or is nearby
+      return eventRides.filter(ride => {
+        if (!ride?.origin || !event?.location) return false;
+        
+        const eventLocation = event.location.toLowerCase();
+        const rideDestination = ride.origin.toLowerCase();
+        
+        // Check if ride destination contains event location or vice versa
+        return eventLocation.includes(rideDestination) || 
+               rideDestination.includes(eventLocation) ||
+               eventRides.includes(ride); // Include all event-linked rides
+      });
+    } catch (error) {
+      console.error('Error filtering rides:', error);
+      return [];
+    }
+  };
+
+  const matchingRides = getMatchingRides();
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -257,7 +309,7 @@ const EventDetails = () => {
     );
   }
 
-  if (!event) {
+  if (hasError || !event) {
     return (
       <div className="min-h-screen flex flex-col">
         <Navbar />
@@ -283,6 +335,9 @@ const EventDetails = () => {
     );
   }
 
+  // Show carpool section if user is attending or maybe attending
+  const showCarpools = event.rsvpStatus === 'attending' || event.rsvpStatus === 'maybe';
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
@@ -294,6 +349,10 @@ const EventDetails = () => {
               src={event.imageUrl} 
               alt={event.title} 
               className="w-full h-full object-cover"
+              onError={(e) => {
+                // Handle broken images gracefully
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
             />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center">
@@ -365,85 +424,129 @@ const EventDetails = () => {
                 </CardContent>
               </Card>
 
-              {/* Real Carpool Options (shown when user RSVPs as attending) */}
-              {(showCarpoolOptions || event.rsvpStatus === 'attending') && (
+              {/* Enhanced Carpool Options - Show for attending/maybe users */}
+              {showCarpools && (
                 <Card>
                   <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <Car className="h-6 w-6 mr-2 text-brand-600" />
-                      Available Carpools
+                    <CardTitle className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <Car className="h-6 w-6 mr-2 text-brand-600" />
+                        Available Carpools
+                        {matchingRides.length > 0 && (
+                          <Badge variant="secondary" className="ml-2">
+                            {matchingRides.length} ride{matchingRides.length !== 1 ? 's' : ''} available
+                          </Badge>
+                        )}
+                      </div>
+                      {!ridesLoading && matchingRides.length > 0 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => refreshRides()}
+                          className="text-xs"
+                        >
+                          Refresh
+                        </Button>
+                      )}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    {ridesError && (
+                      <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                        <p className="text-sm text-yellow-700">
+                          ⚠️ Unable to load rides at the moment. Please try refreshing the page.
+                        </p>
+                      </div>
+                    )}
+                    
                     {ridesLoading ? (
                       <div className="text-center py-8">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600 mx-auto"></div>
                         <p className="text-muted-foreground mt-2">Loading available rides...</p>
                       </div>
-                    ) : eventRides.length === 0 ? (
+                    ) : matchingRides.length === 0 && !ridesError ? (
                       <div className="text-center py-8">
                         <Car className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                        <p className="text-muted-foreground">No rides available yet.</p>
-                        <p className="text-sm text-muted-foreground">Be the first to offer a ride!</p>
-                      </div>
-                    ) : (
-                      eventRides.map((ride) => (
-                        <div key={ride.ride_id} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
-                          <div className="flex justify-between items-start mb-3">
-                            <div>
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="font-medium">{ride.driver_name}</span>
-                                <div className="flex items-center">
-                                  <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                                  <span className="text-sm text-muted-foreground ml-1">4.8</span>
-                                </div>
-                              </div>
-                              <div className="text-sm text-muted-foreground space-y-1">
-                                <div className="flex items-center">
-                                  <MapPin className="h-4 w-4 mr-1" />
-                                  From {ride.origin}
-                                </div>
-                                <div className="flex items-center">
-                                  <Clock className="h-4 w-4 mr-1" />
-                                  Departure at {formatTime(ride.departure_time)}
-                                </div>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="font-semibold text-brand-600">₹{ride.price}/seat</div>
-                              <div className="text-sm text-muted-foreground">
-                                {ride.available_seats} seats left
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className="flex gap-2">
-                            <Button 
-                              size="sm" 
-                              className="flex-1"
-                              onClick={() => handleRequestSeat(ride.ride_id, ride.driver_name)}
-                              disabled={ride.available_seats <= 0}
-                            >
-                              {ride.available_seats <= 0 ? 'Full' : 'Request Seat'}
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => handleMessageDriver(ride.ride_id, ride.driver_name)}
-                            >
-                              <MessageCircle className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => handleCallDriver(ride.driver_name, ride.driver_phone)}
-                            >
-                              <Phone className="h-4 w-4" />
-                            </Button>
-                          </div>
+                        <p className="text-muted-foreground font-medium">No rides available yet for this event.</p>
+                        <p className="text-sm text-muted-foreground mt-1">Be the first to offer a ride!</p>
+                        
+                        {/* Helpful tip */}
+                        <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                          <p className="text-sm text-blue-700">
+                            💡 <strong>Tip:</strong> Rides are automatically matched to events based on location and date.
+                          </p>
                         </div>
-                      ))
-                    )}
+                      </div>
+                    ) : matchingRides.length > 0 ? (
+                      <>
+                        {/* Show helpful info about matching */}
+                        <div className="mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
+                          <p className="text-sm text-green-700">
+                            ✨ These rides are going to or near <strong>{event.location}</strong> on the event date.
+                          </p>
+                        </div>
+                        
+                        {matchingRides.map((ride) => (
+                          <div key={ride.ride_id} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
+                            <div className="flex justify-between items-start mb-3">
+                              <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="font-medium">{ride.driver_name}</span>
+                                  <div className="flex items-center">
+                                    <Star className="h-4 w-4 text-yellow-500 fill-current" />
+                                    <span className="text-sm text-muted-foreground ml-1">4.8</span>
+                                  </div>
+                                  <Badge variant="outline" className="text-xs">
+                                    Event Ride
+                                  </Badge>
+                                </div>
+                                <div className="text-sm text-muted-foreground space-y-1">
+                                  <div className="flex items-center">
+                                    <MapPin className="h-4 w-4 mr-1" />
+                                    From {ride.origin}
+                                  </div>
+                                  <div className="flex items-center">
+                                    <Clock className="h-4 w-4 mr-1" />
+                                    Departure at {formatTime(ride.departure_time)}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="font-semibold text-brand-600">₹{ride.price}/seat</div>
+                                <div className="text-sm text-muted-foreground">
+                                  {ride.available_seats} seats left
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="flex gap-2">
+                              <Button 
+                                size="sm" 
+                                className="flex-1"
+                                onClick={() => handleRequestSeat(ride.ride_id, ride.driver_name)}
+                                disabled={ride.available_seats <= 0}
+                              >
+                                {ride.available_seats <= 0 ? 'Full' : 'Request Seat'}
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleMessageDriver(ride.ride_id, ride.driver_name)}
+                              >
+                                <MessageCircle className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleCallDriver(ride.driver_name, ride.driver_phone)}
+                              >
+                                <Phone className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </>
+                    ) : null}
                     
                     <Separator />
                     
@@ -454,7 +557,7 @@ const EventDetails = () => {
                         onClick={handleOfferRide}
                       >
                         <Car className="h-4 w-4 mr-2" />
-                        Offer a Ride Instead
+                        Offer a Ride for This Event
                       </Button>
                     </div>
                   </CardContent>
@@ -585,6 +688,10 @@ const EventDetails = () => {
           onRideCreated={() => {
             refreshRides();
             setShowCreateRideModal(false);
+            toast({
+              title: "Ride created!",
+              description: "Your ride has been linked to this event and is now available to other attendees.",
+            });
           }}
           eventId={eventId}
           eventName={event.title}
