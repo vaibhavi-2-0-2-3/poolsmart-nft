@@ -26,7 +26,7 @@ const Card = React.forwardRef<HTMLDivElement, CardProps>(
       <div
         ref={ref}
         className={cn(
-          'rounded-lg transition-all duration-200', 
+          'rounded-lg transition-all duration-200',
           variantStyles[variant],
           paddingStyles[padding],
           className

@@ -110,7 +110,7 @@ const Dashboard = () => {
       <Navbar />
       <main className="flex-grow pt-24 pb-16">
         <div className="container mx-auto px-4">
-          <CarpoolingBenefitsBanner />
+          {/* <CarpoolingBenefitsBanner /> */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
             <div>
               <h1 className="text-3xl font-bold">Dashboard</h1>
