@@ -176,8 +176,8 @@ export const createRide = async (rideData: {
   return data.id;
 };
 
-// Bookings API
-export const createBooking = async (rideId: string): Promise<boolean> => {
+// Updated: Create ride request instead of direct booking
+export const createRideRequest = async (rideId: string, message?: string): Promise<boolean> => {
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -186,20 +186,26 @@ export const createBooking = async (rideId: string): Promise<boolean> => {
     throw new Error("User not authenticated");
   }
 
-  const { error } = await supabase.from("bookings").insert([
+  const { error } = await supabase.from("ride_requests").insert([
     {
       ride_id: rideId,
       user_id: user.id,
-      status: "confirmed",
+      status: "pending",
+      message: message || null,
     },
   ]);
 
   if (error) {
-    console.error("Error creating booking:", error);
+    console.error("Error creating ride request:", error);
     throw error;
   }
 
   return true;
+};
+
+// Legacy function for backward compatibility - now creates requests
+export const createBooking = async (rideId: string, message?: string): Promise<boolean> => {
+  return createRideRequest(rideId, message);
 };
 
 export const getUserBookings = async (): Promise<SupabaseBooking[]> => {
@@ -245,6 +251,112 @@ export const getUserRides = async (): Promise<SupabaseRide[]> => {
   }
 
   return data || [];
+};
+
+// Get ride requests for a specific ride (for drivers)
+export const getRideRequests = async (rideId: string): Promise<SupabaseRideRequest[]> => {
+  const { data, error } = await supabase
+    .from("ride_requests")
+    .select(`
+      *,
+      profiles:user_id (
+        full_name,
+        email,
+        avatar_url
+      )
+    `)
+    .eq("ride_id", rideId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching ride requests:", error);
+    throw error;
+  }
+
+  // Type assertion to ensure proper typing
+  return (data || []).map(request => ({
+    ...request,
+    status: request.status as 'pending' | 'accepted' | 'rejected'
+  }));
+};
+
+// Get user's pending ride requests
+export const getUserRideRequests = async (): Promise<SupabaseRideRequest[]> => {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from("ride_requests")
+    .select(`
+      *,
+      rides:ride_id (
+        origin,
+        destination,
+        date,
+        price,
+        driver_name
+      )
+    `)
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching user ride requests:", error);
+    throw error;
+  }
+
+  return (data || []).map(request => ({
+    ...request,
+    status: request.status as 'pending' | 'accepted' | 'rejected'
+  }));
+};
+
+export const updateRideRequestStatus = async (
+  requestId: string,
+  status: 'accepted' | 'rejected'
+): Promise<boolean> => {
+  const { error } = await supabase
+    .from("ride_requests")
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq("id", requestId);
+
+  if (error) {
+    console.error("Error updating ride request status:", error);
+    throw error;
+  }
+
+  // If accepted, create a booking
+  if (status === 'accepted') {
+    const { data: request } = await supabase
+      .from("ride_requests")
+      .select("ride_id, user_id")
+      .eq("id", requestId)
+      .single();
+
+    if (request) {
+      const { error: bookingError } = await supabase
+        .from("bookings")
+        .insert([
+          {
+            ride_id: request.ride_id,
+            user_id: request.user_id,
+            status: "confirmed",
+          },
+        ]);
+
+      if (bookingError) {
+        console.error("Error creating booking:", bookingError);
+        throw bookingError;
+      }
+    }
+  }
+
+  return true;
 };
 
 // Events API
@@ -344,7 +456,7 @@ export const getEventAttendees = async (eventId: string): Promise<string[]> => {
 };
 
 // Ride Requests API
-export const createRideRequest = async (rideId: string, message?: string): Promise<boolean> => {
+export const createRideRequestOld = async (rideId: string, message?: string): Promise<boolean> => {
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -370,7 +482,7 @@ export const createRideRequest = async (rideId: string, message?: string): Promi
   return true;
 };
 
-export const getRideRequests = async (rideId: string): Promise<SupabaseRideRequest[]> => {
+export const getRideRequestsOld = async (rideId: string): Promise<SupabaseRideRequest[]> => {
   const { data, error } = await supabase
     .from("ride_requests")
     .select("*")
@@ -389,7 +501,7 @@ export const getRideRequests = async (rideId: string): Promise<SupabaseRideReque
   }));
 };
 
-export const updateRideRequestStatus = async (
+export const updateRideRequestStatusOld = async (
   requestId: string,
   status: 'accepted' | 'rejected'
 ): Promise<boolean> => {

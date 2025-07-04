@@ -1,24 +1,24 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Navbar } from '@/components/layout/Navbar';
 import { Card } from '@/components/shared/Card';
 import { Button } from '@/components/shared/Button';
 import { ChevronLeft, MapPin, Clock, Users, DollarSign, Shield, ExternalLink, CreditCard, MessageCircle } from 'lucide-react';
-import { getRides, createBooking, SupabaseRide } from '@/lib/supabase';
+import { getRides, createRideRequest, SupabaseRide } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { ProtectedAction } from '@/components/auth/ProtectedAction';
 import { useToast } from '@/hooks/use-toast';
 import { MessagingModal } from '@/components/messaging/MessagingModal';
 import { CalendarAlert } from '@/components/calendar/CalendarAlert';
 import { WeatherWidget } from '@/components/weather/WeatherWidget';
+import RideRequests from '@/components/rides/RideRequests';
 
 const RideDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [ride, setRide] = useState<SupabaseRide | null>(null);
   const [loading, setLoading] = useState(true);
-  const [booking, setBooking] = useState(false);
+  const [requesting, setRequesting] = useState(false);
   const [messagingOpen, setMessagingOpen] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
@@ -47,26 +47,26 @@ const RideDetails = () => {
     }
   };
 
-  const handleBookRide = async () => {
+  const handleRequestRide = async () => {
     if (!ride || !user) return;
 
-    setBooking(true);
+    setRequesting(true);
     try {
-      await createBooking(ride.id);
+      await createRideRequest(ride.id);
       toast({
-        title: "Ride booked successfully!",
-        description: "You will receive a confirmation email shortly.",
+        title: "Request sent successfully!",
+        description: "The driver will review your request and respond soon.",
       });
       navigate('/dashboard');
     } catch (error) {
-      console.error("Error booking ride:", error);
+      console.error("Error requesting ride:", error);
       toast({
-        title: "Booking failed",
-        description: "Unable to book this ride. Please try again.",
+        title: "Request failed",
+        description: "Unable to send ride request. Please try again.",
         variant: "destructive",
       });
     } finally {
-      setBooking(false);
+      setRequesting(false);
     }
   };
 
@@ -260,6 +260,14 @@ const RideDetails = () => {
                   </div>
                 </div>
               </Card>
+
+              {/* Ride Requests (only for ride owner) */}
+              {isOwnRide && (
+                <RideRequests 
+                  rideId={ride.id} 
+                  onRequestUpdate={loadRideDetails}
+                />
+              )}
             </div>
 
             <div className="lg:col-span-1 space-y-6">
@@ -271,7 +279,7 @@ const RideDetails = () => {
                   origin={ride.origin}
                   destination={ride.destination}
                   driverName={ride.driver_name || 'Driver'}
-                  notes="Booked via PoolSmart-NFT"
+                  notes="Requested via PoolSmart-NFT"
                 />
               </Card>
 
@@ -299,18 +307,18 @@ const RideDetails = () => {
                       requireAuth={true}
                       fallback={
                         <Button variant="primary" className="w-full" disabled>
-                          Sign in to Book
+                          Sign in to Request
                         </Button>
                       }
                     >
                       <Button 
                         variant="primary"
                         className="w-full"
-                        onClick={handleBookRide}
-                        disabled={booking || ride.seats === 0}
+                        onClick={handleRequestRide}
+                        disabled={requesting || ride.seats === 0}
                       >
-                        {booking ? 'Booking...' : 
-                         ride.seats === 0 ? 'Fully Booked' : 'Start Booking'}
+                        {requesting ? 'Sending Request...' : 
+                         ride.seats === 0 ? 'Fully Booked' : 'Request to Join'}
                       </Button>
                     </ProtectedAction>
                   )}
@@ -318,7 +326,7 @@ const RideDetails = () => {
                   {isOwnRide && (
                     <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
                       <p className="text-sm text-amber-700 dark:text-amber-300 text-center">
-                        This is your ride
+                        This is your ride - check requests below
                       </p>
                     </div>
                   )}
@@ -329,20 +337,20 @@ const RideDetails = () => {
               <Card className="p-6">
                 <div className="flex items-center mb-4">
                   <Shield className="h-5 w-5 text-green-600 mr-2" />
-                  <h3 className="font-semibold">Secure Payment</h3>
+                  <h3 className="font-semibold">Secure Process</h3>
                 </div>
                 <div className="space-y-3 text-sm text-muted-foreground">
                   <div className="flex items-center">
                     <CreditCard className="h-4 w-4 mr-2" />
-                    <span>Encrypted payment processing</span>
+                    <span>Driver approval required</span>
                   </div>
                   <div className="flex items-center">
                     <Shield className="h-4 w-4 mr-2" />
-                    <span>Booking protection guarantee</span>
+                    <span>Request protection guarantee</span>
                   </div>
                   <div className="flex items-center">
                     <Clock className="h-4 w-4 mr-2" />
-                    <span>Free cancellation up to 24h</span>
+                    <span>Free to request</span>
                   </div>
                 </div>
               </Card>

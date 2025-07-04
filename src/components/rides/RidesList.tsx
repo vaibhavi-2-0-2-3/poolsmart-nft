@@ -4,7 +4,7 @@ import { Card } from '@/components/shared/Card';
 import { Button } from '@/components/shared/Button';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, Calendar, Clock, Star, Users, ArrowRight, Verified, Leaf, Car } from 'lucide-react';
-import { getRides, createBooking, SupabaseRide, getProfile, getUserBookings } from '@/lib/supabase';
+import { getRides, createRideRequest, SupabaseRide, getProfile, getUserRideRequests } from '@/lib/supabase';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -31,31 +31,34 @@ interface RideWithProfile extends SupabaseRide {
     full_name?: string;
   };
   is_event_linked?: boolean;
-  user_booked?: boolean;
+  user_requested?: boolean;
+  request_status?: 'pending' | 'accepted' | 'rejected';
 }
 
 const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger, filters }) => {
   const [rides, setRides] = useState<RideWithProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [bookingRide, setBookingRide] = useState<string | null>(null);
-  const [userBookings, setUserBookings] = useState<string[]>([]);
+  const [requestingRide, setRequestingRide] = useState<string | null>(null);
+  const [userRequests, setUserRequests] = useState<string[]>([]);
   const { toast } = useToast();
   const { user } = useAuth();
 
   useEffect(() => {
     loadRides();
     if (user) {
-      loadUserBookings();
+      loadUserRequests();
     }
   }, [refreshTrigger, searchParams, filters, user]);
 
-  const loadUserBookings = async () => {
+  const loadUserRequests = async () => {
     try {
-      const bookings = await getUserBookings();
-      const rideIds = bookings.map(booking => booking.ride_id);
-      setUserBookings(rideIds);
+      const requests = await getUserRideRequests();
+      const pendingRequestRideIds = requests
+        .filter(req => req.status === 'pending')
+        .map(req => req.ride_id);
+      setUserRequests(pendingRequestRideIds);
     } catch (error) {
-      console.error('Error loading user bookings:', error);
+      console.error('Error loading user requests:', error);
     }
   };
 
@@ -83,14 +86,14 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger, fil
                 full_name: ride.driver_name,
               },
               is_event_linked: !!eventRide,
-              user_booked: userBookings.includes(ride.id)
+              user_requested: userRequests.includes(ride.id)
             };
           } catch (error) {
             console.error('Error loading driver profile:', error);
             return {
               ...ride,
               is_event_linked: false,
-              user_booked: userBookings.includes(ride.id)
+              user_requested: userRequests.includes(ride.id)
             };
           }
         })
@@ -188,37 +191,37 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger, fil
     }
   };
 
-  const handleBookRide = async (rideId: string, e: React.MouseEvent) => {
+  const handleRequestRide = async (rideId: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
     if (!user) {
       toast({
         title: "Authentication required",
-        description: "Please sign in to book a ride.",
+        description: "Please sign in to request a ride.",
         variant: "destructive",
       });
       return;
     }
 
-    setBookingRide(rideId);
+    setRequestingRide(rideId);
     try {
-      await createBooking(rideId);
-      setUserBookings(prev => [...prev, rideId]);
+      await createRideRequest(rideId);
+      setUserRequests(prev => [...prev, rideId]);
       toast({
-        title: "Ride booked",
-        description: "Your ride has been successfully booked!",
+        title: "Request sent",
+        description: "Your ride request has been sent to the driver!",
       });
       loadRides();
     } catch (error) {
-      console.error("Error booking ride:", error);
+      console.error("Error requesting ride:", error);
       toast({
-        title: "Booking failed",
-        description: "Unable to book this ride. Please try again.",
+        title: "Request failed",
+        description: "Unable to send ride request. Please try again.",
         variant: "destructive",
       });
     } finally {
-      setBookingRide(null);
+      setRequestingRide(null);
     }
   };
 
@@ -311,7 +314,7 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger, fil
       </div>
 
       {rides.map((ride) => {
-        const isBooked = userBookings.includes(ride.id);
+        const hasRequested = userRequests.includes(ride.id);
         const isOwnRide = ride.user_id === user?.id;
         
         return (
@@ -415,7 +418,7 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger, fil
                 <div className="flex justify-between items-center pt-4 border-t border-gray-100">
                   <div className="flex items-center gap-4">
                     <Badge variant="outline" className="text-xs">
-                      Instant booking
+                      Request to join
                     </Badge>
                     {ride.is_event_linked && (
                       <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
@@ -439,24 +442,24 @@ const RidesList: React.FC<RidesListProps> = ({ searchParams, refreshTrigger, fil
                       requireAuth={true}
                       fallback={
                         <Button variant="primary" size="sm" disabled>
-                          Sign in to Book
+                          Sign in to Request
                         </Button>
                       }
                     >
                       <Button
-                        variant={isBooked ? "secondary" : "primary"}
+                        variant={hasRequested ? "secondary" : "primary"}
                         size="sm"
-                        onClick={(e) => !isBooked && !isOwnRide && handleBookRide(ride.id, e)}
-                        disabled={bookingRide === ride.id || ride.seats === 0 || isOwnRide || isBooked}
-                        className={isBooked 
-                          ? "bg-green-100 text-green-700 hover:bg-green-100 cursor-default" 
+                        onClick={(e) => !hasRequested && !isOwnRide && handleRequestRide(ride.id, e)}
+                        disabled={requestingRide === ride.id || ride.seats === 0 || isOwnRide || hasRequested}
+                        className={hasRequested 
+                          ? "bg-amber-100 text-amber-700 hover:bg-amber-100 cursor-default" 
                           : "bg-gradient-to-r from-brand-600 to-brand-700 hover:from-brand-700 hover:to-brand-800 font-semibold px-6"
                         }
                       >
-                        {bookingRide === ride.id ? 'Booking...' :
-                          isBooked ? 'Booked ✓' :
+                        {requestingRide === ride.id ? 'Sending...' :
+                          hasRequested ? 'Request Sent' :
                           ride.seats === 0 ? 'Full' :
-                          isOwnRide ? 'Your Ride' : 'Book Now'}
+                          isOwnRide ? 'Your Ride' : 'Request to Join'}
                       </Button>
                     </ProtectedAction>
                   </div>

@@ -1,22 +1,22 @@
-
 import React, { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { Navbar } from '@/components/layout/Navbar';
 import { Card } from '@/components/shared/Card';
 import { Button } from '@/components/shared/Button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Clock, MapPin, Users, Star, User, Car } from 'lucide-react';
-import { getUserRides, getUserBookings, SupabaseRide, SupabaseBooking } from '@/lib/supabase';
+import { Calendar, Clock, MapPin, Users, Star, User, Car, Send } from 'lucide-react';
+import { getUserRides, getUserBookings, getUserRideRequests, SupabaseRide, SupabaseBooking, SupabaseRideRequest } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { ProfileStatsCard } from '@/components/dashboard/ProfileStatsCard';
-import { CarpoolingBenefitsBanner } from '@/components/rides/CarpoolingBenefitsBanner';
+import { Badge } from '@/components/ui/badge';
 
 const Dashboard = () => {
   const { user, loading: authLoading } = useAuth();
-  const [activeTab, setActiveTab] = useState('bookings');
+  const [activeTab, setActiveTab] = useState('requests');
   const [myBookings, setMyBookings] = useState<SupabaseBooking[]>([]);
   const [offeredRides, setOfferedRides] = useState<SupabaseRide[]>([]);
+  const [myRequests, setMyRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -39,6 +39,10 @@ const Dashboard = () => {
       // Get user's offered rides
       const userRides = await getUserRides();
       setOfferedRides(userRides);
+
+      // Get user's ride requests
+      const userRequests = await getUserRideRequests();
+      setMyRequests(userRequests);
 
     } catch (error) {
       console.error("Error loading user data:", error);
@@ -105,12 +109,24 @@ const Dashboard = () => {
 
   const stats = calculateStats();
 
+  const getRequestStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Badge className="bg-amber-100 text-amber-700">Pending</Badge>;
+      case 'accepted':
+        return <Badge className="bg-green-100 text-green-700">Accepted</Badge>;
+      case 'rejected':
+        return <Badge className="bg-red-100 text-red-700">Declined</Badge>;
+      default:
+        return <Badge variant="secondary">{status}</Badge>;
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
       <main className="flex-grow pt-24 pb-16">
         <div className="container mx-auto px-4">
-          {/* <CarpoolingBenefitsBanner /> */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
             <div>
               <h1 className="text-3xl font-bold">Dashboard</h1>
@@ -136,13 +152,25 @@ const Dashboard = () => {
 
             {/* Quick Stats Grid */}
             <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card className="p-6 bg-amber-50 border-amber-100">
+                <div className="flex items-center">
+                  <div className="h-12 w-12 rounded-full bg-amber-100 flex items-center justify-center mr-4">
+                    <Send className="h-6 w-6 text-amber-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground">My Requests</h3>
+                    <p className="text-lg font-semibold">{myRequests.length}</p>
+                  </div>
+                </div>
+              </Card>
+
               <Card className="p-6 bg-green-50 border-green-100">
                 <div className="flex items-center">
                   <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center mr-4">
                     <Car className="h-6 w-6 text-green-600" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-medium text-muted-foreground">My Bookings</h3>
+                    <h3 className="text-sm font-medium text-muted-foreground">Confirmed Rides</h3>
                     <p className="text-lg font-semibold">{myBookings.length}</p>
                   </div>
                 </div>
@@ -159,26 +187,75 @@ const Dashboard = () => {
                   </div>
                 </div>
               </Card>
-
-              <Card className="p-6 bg-brand-50 border-brand-100">
-                <div className="flex items-center">
-                  <div className="h-12 w-12 rounded-full bg-brand-100 flex items-center justify-center mr-4">
-                    <User className="h-6 w-6 text-brand-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-muted-foreground">Profile</h3>
-                    <p className="text-lg font-semibold">Active</p>
-                  </div>
-                </div>
-              </Card>
             </div>
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-6">
-              <TabsTrigger value="bookings">My Bookings ({myBookings.length})</TabsTrigger>
+              <TabsTrigger value="requests">My Requests ({myRequests.length})</TabsTrigger>
+              <TabsTrigger value="bookings">Confirmed Rides ({myBookings.length})</TabsTrigger>
               <TabsTrigger value="offered">Offered Rides ({offeredRides.length})</TabsTrigger>
             </TabsList>
+
+            <TabsContent value="requests">
+              {loading ? (
+                <Card className="p-8">
+                  <div className="flex justify-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-600"></div>
+                  </div>
+                </Card>
+              ) : myRequests.length === 0 ? (
+                <Card className="p-8 text-center">
+                  <Send className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h2 className="text-xl font-semibold mb-4">No Ride Requests</h2>
+                  <p className="text-muted-foreground mb-6">
+                    You haven't requested any rides yet. Browse available rides and send your first request!
+                  </p>
+                  <Button variant="primary" asChild>
+                    <Link to="/rides">Find a Ride</Link>
+                  </Button>
+                </Card>
+              ) : (
+                <div className="space-y-4">
+                  {myRequests.map((request: any) => (
+                    <Card key={request.id} className="p-6">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="font-semibold">Request to {request.rides?.driver_name}</h3>
+                            {getRequestStatusBadge(request.status)}
+                          </div>
+                          <div className="text-sm text-muted-foreground space-y-1">
+                            <div className="flex items-center gap-2">
+                              <MapPin className="h-4 w-4" />
+                              <span>{request.rides?.origin} → {request.rides?.destination}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Calendar className="h-4 w-4" />
+                              <span>{formatDate(request.rides?.date)} at {formatTime(request.rides?.date)}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <DollarSign className="h-4 w-4" />
+                              <span>${request.rides?.price} per person</span>
+                            </div>
+                          </div>
+                        </div>
+                        <Button variant="outline" size="sm" asChild>
+                          <Link to={`/ride/${request.ride_id}`}>
+                            View Ride
+                          </Link>
+                        </Button>
+                      </div>
+                      {request.message && (
+                        <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                          <p className="text-sm italic">"{request.message}"</p>
+                        </div>
+                      )}
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
 
             <TabsContent value="bookings">
               {loading ? (
