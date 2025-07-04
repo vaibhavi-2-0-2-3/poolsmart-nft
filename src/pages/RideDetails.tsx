@@ -13,6 +13,7 @@ import { CalendarAlert } from '@/components/calendar/CalendarAlert';
 import { WeatherWidget } from '@/components/weather/WeatherWidget';
 import { ReviewModal } from '@/components/reviews/ReviewModal';
 import RideRequests from '@/components/rides/RideRequests';
+import { formatDate, formatTime } from '@/lib/utils';
 
 const RideDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -83,24 +84,6 @@ const RideDetails = () => {
     } finally {
       setRequesting(false);
     }
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long', 
-      day: 'numeric' 
-    });
-  };
-
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
   };
 
   const getGoogleMapsUrl = (origin: string, destination: string) => {

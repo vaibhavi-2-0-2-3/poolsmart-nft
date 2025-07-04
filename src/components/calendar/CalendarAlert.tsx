@@ -22,11 +22,20 @@ export const CalendarAlert: React.FC<CalendarAlertProps> = ({
   const { toast } = useToast();
 
   const generateGoogleCalendarUrl = () => {
+    // Create date objects and ensure proper timezone handling
     const startDate = new Date(rideDate);
     const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000); // Add 2 hours
 
     const formatDate = (date: Date) => {
-      return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+      // Format in local timezone but convert to UTC format for Google Calendar
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const seconds = String(date.getSeconds()).padStart(2, '0');
+      
+      return `${year}${month}${day}T${hours}${minutes}${seconds}`;
     };
 
     const title = encodeURIComponent(`Carpool: ${origin} → ${destination}`);

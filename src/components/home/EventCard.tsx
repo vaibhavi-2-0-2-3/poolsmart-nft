@@ -8,6 +8,7 @@ import { Calendar, MapPin, Users, Clock, Star, Car } from 'lucide-react';
 import { updateEventRSVP } from '@/lib/eventsApi';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { formatDate, formatTime, formatDateTime } from '@/lib/utils';
 
 export interface Event {
   id: string;
@@ -33,25 +34,6 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdate }) =>
   const [isUpdatingRSVP, setIsUpdatingRSVP] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      weekday: 'short', 
-      month: 'short', 
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
-      minute: '2-digit'
-    });
-  };
 
   const getCategoryColor = (category: string | null) => {
     switch (category) {
@@ -153,7 +135,7 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdate }) =>
         <div className="flex flex-col gap-2 text-sm text-muted-foreground">
           <div className="flex items-center">
             <Calendar className="h-4 w-4 mr-2 text-brand-600 flex-shrink-0" />
-            <span className="truncate">{formatDate(event.date)}</span>
+            <span className="truncate">{formatDateTime(event.date)}</span>
           </div>
           
           <div className="flex items-center">

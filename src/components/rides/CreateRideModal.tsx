@@ -65,11 +65,14 @@ export const CreateRideModal: React.FC<CreateRideModalProps> = ({
     }
 
     try {
+      // Create a proper ISO date string for consistent timezone handling
+      const rideDateTime = new Date(`${data.date}T${data.time}:00`);
+      
       const rideData = {
         origin: data.origin,
         destination: data.destination,
         seats: Number(data.seats),
-        date: `${data.date}T${data.time}:00`,
+        date: rideDateTime.toISOString(), // This ensures consistent UTC storage
         price: Number(data.price),
         driver_name: user.user_metadata?.full_name || user.email || 'Anonymous',
         driver_email: user.email || '',

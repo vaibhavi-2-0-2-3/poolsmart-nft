@@ -16,6 +16,7 @@ import { createRideRequest, getProfile } from '@/lib/supabase';
 import { PhoneNumberModal } from '@/components/rides/PhoneNumberModal';
 import { CreateRideModal } from '@/components/rides/CreateRideModal';
 import { useEventRides } from '@/hooks/useEventRides';
+import { formatDate, formatTime, formatDateTime } from '@/lib/utils';
 
 const EventDetails = () => {
   const { id: eventId } = useParams<{ id: string }>();
@@ -66,18 +67,6 @@ const EventDetails = () => {
     
     fetchUserProfile();
   }, [user]);
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
 
   const handleRSVP = async (status: 'attending' | 'maybe' | 'not_attending') => {
     if (!user) {
@@ -236,15 +225,6 @@ const EventDetails = () => {
     }
   };
 
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      hour12: false 
-    });
-  };
-
   if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -320,7 +300,7 @@ const EventDetails = () => {
               <div className="flex flex-wrap gap-6 text-lg">
                 <div className="flex items-center">
                   <Calendar className="h-5 w-5 mr-2" />
-                  <span>{formatDate(event.date)}</span>
+                  <span>{formatDateTime(event.date)}</span>
                 </div>
                 <div className="flex items-center">
                   <MapPin className="h-5 w-5 mr-2" />
@@ -530,7 +510,7 @@ const EventDetails = () => {
                     <Calendar className="h-5 w-5 text-brand-600 mt-0.5" />
                     <div>
                       <div className="font-medium">Date & Time</div>
-                      <div className="text-sm text-muted-foreground">{formatDate(event.date)}</div>
+                      <div className="text-sm text-muted-foreground">{formatDateTime(event.date)}</div>
                     </div>
                   </div>
                   
