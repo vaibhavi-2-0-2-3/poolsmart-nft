@@ -3,14 +3,15 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Navbar } from '@/components/layout/Navbar';
 import { Card } from '@/components/shared/Card';
 import { Button } from '@/components/shared/Button';
-import { ChevronLeft, MapPin, Clock, Users, DollarSign, Shield, ExternalLink, CreditCard, MessageCircle } from 'lucide-react';
-import { getRides, createRideRequest, SupabaseRide } from '@/lib/supabase';
+import { ChevronLeft, MapPin, Clock, Users, DollarSign, Shield, ExternalLink, CreditCard, MessageCircle, Star } from 'lucide-react';
+import { getRides, createRideRequest, SupabaseRide, getUserRideRequests } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { ProtectedAction } from '@/components/auth/ProtectedAction';
 import { useToast } from '@/hooks/use-toast';
 import { MessagingModal } from '@/components/messaging/MessagingModal';
 import { CalendarAlert } from '@/components/calendar/CalendarAlert';
 import { WeatherWidget } from '@/components/weather/WeatherWidget';
+import { ReviewModal } from '@/components/reviews/ReviewModal';
 import RideRequests from '@/components/rides/RideRequests';
 
 const RideDetails = () => {
@@ -20,12 +21,26 @@ const RideDetails = () => {
   const [loading, setLoading] = useState(true);
   const [requesting, setRequesting] = useState(false);
   const [messagingOpen, setMessagingOpen] = useState(false);
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [userRequests, setUserRequests] = useState<any[]>([]);
   const { user } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
     loadRideDetails();
-  }, [id]);
+    if (user) {
+      loadUserRequests();
+    }
+  }, [id, user]);
+
+  const loadUserRequests = async () => {
+    try {
+      const requests = await getUserRideRequests();
+      setUserRequests(requests);
+    } catch (error) {
+      console.error('Error loading user requests:', error);
+    }
+  };
 
   const loadRideDetails = async () => {
     if (!id) return;
@@ -92,6 +107,30 @@ const RideDetails = () => {
     return `https://www.google.com/maps/dir/${encodeURIComponent(origin)}/${encodeURIComponent(destination)}`;
   };
 
+  const isRideCompleted = (rideDate: string) => {
+    const rideTime = new Date(rideDate);
+    const now = new Date();
+    return rideTime < now;
+  };
+
+  const hasAcceptedRequest = () => {
+    if (!ride || !user) return false;
+    return userRequests.some(request => 
+      request.ride_id === ride.id && 
+      request.user_id === user.id && 
+      request.status === 'accepted'
+    );
+  };
+
+  const canReviewRide = () => {
+    if (!ride || !user) return false;
+    const isCompleted = isRideCompleted(ride.date);
+    const wasAccepted = hasAcceptedRequest();
+    const isNotOwnRide = user.id !== ride.user_id;
+    
+    return isCompleted && wasAccepted && isNotOwnRide;
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -129,6 +168,8 @@ const RideDetails = () => {
   }
 
   const isOwnRide = user?.id === ride.user_id;
+  const rideCompleted = isRideCompleted(ride.date);
+  const showReviewButton = canReviewRide();
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -151,7 +192,14 @@ const RideDetails = () => {
 
               {/* Route Information */}
               <Card className="p-6">
-                <h1 className="text-2xl font-bold mb-6">Ride Details</h1>
+                <div className="flex items-center justify-between mb-6">
+                  <h1 className="text-2xl font-bold">Ride Details</h1>
+                  {rideCompleted && (
+                    <div className="px-3 py-1 rounded-full bg-gray-100 text-gray-700 text-sm font-medium">
+                      Completed
+                    </div>
+                  )}
+                </div>
                 
                 <div className="space-y-4">
                   <div className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
@@ -257,6 +305,16 @@ const RideDetails = () => {
                         View Profile
                       </Link>
                     </Button>
+                    {showReviewButton && (
+                      <Button 
+                        variant="primary" 
+                        size="sm"
+                        onClick={() => setReviewModalOpen(true)}
+                      >
+                        <Star className="h-4 w-4 mr-1" />
+                        Review Driver
+                      </Button>
+                    )}
                   </div>
                 </div>
               </Card>
@@ -302,7 +360,7 @@ const RideDetails = () => {
                     <span className="text-lg font-semibold">{ride.seats}</span>
                   </div>
 
-                  {!isOwnRide && (
+                  {!isOwnRide && !rideCompleted && (
                     <ProtectedAction
                       requireAuth={true}
                       fallback={
@@ -327,6 +385,14 @@ const RideDetails = () => {
                     <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
                       <p className="text-sm text-amber-700 dark:text-amber-300 text-center">
                         This is your ride - check requests below
+                      </p>
+                    </div>
+                  )}
+
+                  {rideCompleted && !isOwnRide && (
+                    <div className="p-3 bg-gray-50 dark:bg-gray-900/20 rounded-lg">
+                      <p className="text-sm text-gray-700 dark:text-gray-300 text-center">
+                        This ride has been completed
                       </p>
                     </div>
                   )}
@@ -367,6 +433,19 @@ const RideDetails = () => {
         recipientName={ride.driver_name || 'Driver'}
         currentUserId={user?.id || 'current-user'}
         currentUserName={user?.email?.split('@')[0] || 'You'}
+      />
+
+      {/* Review Modal */}
+      <ReviewModal
+        isOpen={reviewModalOpen}
+        onClose={() => setReviewModalOpen(false)}
+        rideId={ride.id}
+        driverId={ride.user_id}
+        driverName={ride.driver_name || 'Driver'}
+        onReviewSubmitted={() => {
+          loadRideDetails();
+          setReviewModalOpen(false);
+        }}
       />
     </div>
   );

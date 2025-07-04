@@ -4,12 +4,13 @@ import { Navbar } from '@/components/layout/Navbar';
 import { Card } from '@/components/shared/Card';
 import { Button } from '@/components/shared/Button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Clock, MapPin, Users, Star, User, Car, Send } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, Star, User, Car, Send, DollarSign } from 'lucide-react';
 import { getUserRides, getUserBookings, getUserRideRequests, SupabaseRide, SupabaseBooking, SupabaseRideRequest } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { ProfileStatsCard } from '@/components/dashboard/ProfileStatsCard';
 import { Badge } from '@/components/ui/badge';
+import { ReviewModal } from '@/components/reviews/ReviewModal';
 
 const Dashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -18,6 +19,8 @@ const Dashboard = () => {
   const [offeredRides, setOfferedRides] = useState<SupabaseRide[]>([]);
   const [myRequests, setMyRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [selectedRideForReview, setSelectedRideForReview] = useState<{ rideId: string; driverId: string; driverName: string } | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -71,6 +74,22 @@ const Dashboard = () => {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const isRideCompleted = (rideDate: string) => {
+    const rideTime = new Date(rideDate);
+    const now = new Date();
+    return rideTime < now;
+  };
+
+  const handleOpenReviewModal = (rideId: string, driverId: string, driverName: string) => {
+    setSelectedRideForReview({ rideId, driverId, driverName });
+    setReviewModalOpen(true);
+  };
+
+  const handleCloseReviewModal = () => {
+    setReviewModalOpen(false);
+    setSelectedRideForReview(null);
   };
 
   // Calculate user stats
@@ -217,42 +236,66 @@ const Dashboard = () => {
                 </Card>
               ) : (
                 <div className="space-y-4">
-                  {myRequests.map((request: any) => (
-                    <Card key={request.id} className="p-6">
-                      <div className="flex justify-between items-start mb-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <h3 className="font-semibold">Request to {request.rides?.driver_name}</h3>
-                            {getRequestStatusBadge(request.status)}
+                  {myRequests.map((request: any) => {
+                    const isCompleted = isRideCompleted(request.rides?.date);
+                    const canReview = isCompleted && request.status === 'accepted';
+                    
+                    return (
+                      <Card key={request.id} className="p-6">
+                        <div className="flex justify-between items-start mb-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <h3 className="font-semibold">Request to {request.rides?.driver_name}</h3>
+                              {getRequestStatusBadge(request.status)}
+                              {isCompleted && (
+                                <Badge className="bg-gray-100 text-gray-700">Completed</Badge>
+                              )}
+                            </div>
+                            <div className="text-sm text-muted-foreground space-y-1">
+                              <div className="flex items-center gap-2">
+                                <MapPin className="h-4 w-4" />
+                                <span>{request.rides?.origin} → {request.rides?.destination}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Calendar className="h-4 w-4" />
+                                <span>{formatDate(request.rides?.date)} at {formatTime(request.rides?.date)}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <DollarSign className="h-4 w-4" />
+                                <span>${request.rides?.price} per person</span>
+                              </div>
+                            </div>
                           </div>
-                          <div className="text-sm text-muted-foreground space-y-1">
-                            <div className="flex items-center gap-2">
-                              <MapPin className="h-4 w-4" />
-                              <span>{request.rides?.origin} → {request.rides?.destination}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Calendar className="h-4 w-4" />
-                              <span>{formatDate(request.rides?.date)} at {formatTime(request.rides?.date)}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <DollarSign className="h-4 w-4" />
-                              <span>${request.rides?.price} per person</span>
-                            </div>
+                          <div className="flex gap-2">
+                            <Button variant="outline" size="sm" asChild>
+                              <Link to={`/ride/${request.ride_id}`}>
+                                View Ride
+                              </Link>
+                            </Button>
+                            {canReview && (
+                              <Button 
+                                variant="primary" 
+                                size="sm"
+                                onClick={() => handleOpenReviewModal(
+                                  request.ride_id, 
+                                  request.rides?.user_id || '', 
+                                  request.rides?.driver_name || 'Driver'
+                                )}
+                              >
+                                <Star className="h-4 w-4 mr-1" />
+                                Review Driver
+                              </Button>
+                            )}
                           </div>
                         </div>
-                        <Button variant="outline" size="sm" asChild>
-                          <Link to={`/ride/${request.ride_id}`}>
-                            View Ride
-                          </Link>
-                        </Button>
-                      </div>
-                      {request.message && (
-                        <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                          <p className="text-sm italic">"{request.message}"</p>
-                        </div>
-                      )}
-                    </Card>
-                  ))}
+                        {request.message && (
+                          <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                            <p className="text-sm italic">"{request.message}"</p>
+                          </div>
+                        )}
+                      </Card>
+                    );
+                  })}
                 </div>
               )}
             </TabsContent>
@@ -364,6 +407,18 @@ const Dashboard = () => {
           </Tabs>
         </div>
       </main>
+
+      {/* Review Modal */}
+      {selectedRideForReview && (
+        <ReviewModal
+          isOpen={reviewModalOpen}
+          onClose={handleCloseReviewModal}
+          rideId={selectedRideForReview.rideId}
+          driverId={selectedRideForReview.driverId}
+          driverName={selectedRideForReview.driverName}
+          onReviewSubmitted={loadUserData}
+        />
+      )}
     </div>
   );
 };
